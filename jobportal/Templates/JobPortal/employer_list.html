@@ -1,0 +1,37 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Employers{% endblock %}
+{% block content %}
+<h2>Employers</h2>
+
+<form method="get" class="bar">
+  <input type="text" name="q" value="{{ query }}" placeholder="Search company, contact, or email">
+  <select name="status">
+    <option value="">All statuses</option>
+    <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+    <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+  </select>
+  <button class="btn" type="submit">Search</button>
+  <a class="btn gray" href="{% url 'employer_list' %}">Reset</a>
+  <a class="btn" href="{% url 'employer_add' %}" style="margin-left:auto;">Register Employer</a>
+</form>
+
+<table>
+  <tr>
+    <th>Company</th><th>Contact Person</th><th>Email</th><th>Status</th><th>Actions</th>
+  </tr>
+  {% for e in employers %}
+  <tr>
+    <td>{{ e.company_name }}</td>
+    <td>{{ e.contact_person }}</td>
+    <td>{{ e.email }}</td>
+    <td><span class="badge {{ e.status }}">{{ e.get_status_display }}</span></td>
+    <td>
+      <a href="{% url 'employer_detail' e.pk %}">View</a> |
+      <a href="{% url 'employer_edit' e.pk %}">Edit</a>
+    </td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="5">No employers found.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

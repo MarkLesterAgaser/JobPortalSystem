@@ -1,0 +1,28 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}{{ employer.company_name }}{% endblock %}
+{% block content %}
+<h2>{{ employer.company_name }}
+  <span class="badge {{ employer.status }}">{{ employer.get_status_display }}</span>
+</h2>
+
+<table>
+  <tr><th>Company Type</th><td>{{ employer.company_type }}</td></tr>
+  <tr><th>Contact Person</th><td>{{ employer.contact_person }}</td></tr>
+  <tr><th>Contact Number</th><td>{{ employer.contact_number }}</td></tr>
+  <tr><th>Email</th><td>{{ employer.email }}</td></tr>
+  <tr><th>Address</th><td>{{ employer.address }}</td></tr>
+  <tr><th>Website</th><td>{{ employer.website }}</td></tr>
+  <tr><th>Description</th><td>{{ employer.company_description }}</td></tr>
+</table>
+
+<div style="margin-top:16px; display:flex; gap:8px;">
+  <a class="btn" href="{% url 'employer_edit' employer.pk %}">Edit</a>
+  <form method="post" action="{% url 'employer_toggle' employer.pk %}">
+    {% csrf_token %}
+    <button class="btn gray" type="submit">
+      {% if employer.status == 'active' %}Deactivate{% else %}Activate{% endif %}
+    </button>
+  </form>
+  <a class="btn gray" href="{% url 'employer_list' %}">Back to list</a>
+</div>
+{% endblock %}
