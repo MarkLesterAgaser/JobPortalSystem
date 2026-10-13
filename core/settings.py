@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-6qf-xe!5yqf-dl#8xclv-z@2d5$hcq0rw!c+#gvg3q7=ia@ot-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['MLAgaser.pythonanywhere.com', '127.0.0.1', 'localhost']
 
 
 # Application definition
@@ -126,3 +126,5 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+STATIC_ROOT = BASE_DIR / 'staticfiles'
