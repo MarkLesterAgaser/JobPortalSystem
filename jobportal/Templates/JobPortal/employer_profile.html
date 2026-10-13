@@ -1,0 +1,76 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}{{ employer.company_name }} Profile{% endblock %}
+{% block content %}
+<h2>{{ employer.company_name }}
+  <span class="badge {{ employer.status }}">{{ employer.get_status_display }}</span>
+</h2>
+
+<div style="display:flex; gap:12px; margin-bottom:20px;">
+  <div style="flex:1; background:#fff; border:1px solid #e0e0e0; padding:14px; text-align:center;">
+    <div style="font-size:28px; font-weight:bold;">{{ active_jobs|length }}</div>
+    <div>Active Jobs</div>
+  </div>
+  <div style="flex:1; background:#fff; border:1px solid #e0e0e0; padding:14px; text-align:center;">
+    <div style="font-size:28px; font-weight:bold;">{{ closed_jobs|length }}</div>
+    <div>Closed Jobs</div>
+  </div>
+  <div style="flex:1; background:#fff; border:1px solid #e0e0e0; padding:14px; text-align:center;">
+    <div style="font-size:28px; font-weight:bold;">{{ applicant_count }}</div>
+    <div>Applicants</div>
+  </div>
+  <div style="flex:1; background:#fff; border:1px solid #e0e0e0; padding:14px; text-align:center;">
+    <div style="font-size:28px; font-weight:bold;">{{ hire_count }}</div>
+    <div>Hires</div>
+  </div>
+</div>
+
+<h3>Company Information</h3>
+<table>
+  <tr><th>Company Type</th><td>{{ employer.company_type }}</td></tr>
+  <tr><th>Address</th><td>{{ employer.address }}</td></tr>
+  <tr><th>Website</th><td>{{ employer.website }}</td></tr>
+  <tr><th>Description</th><td>{{ employer.company_description }}</td></tr>
+</table>
+
+<h3>Contact Information</h3>
+<table>
+  <tr><th>Contact Person</th><td>{{ employer.contact_person }}</td></tr>
+  <tr><th>Contact Number</th><td>{{ employer.contact_number }}</td></tr>
+  <tr><th>Email</th><td>{{ employer.email }}</td></tr>
+</table>
+
+<h3>Active Job Posts</h3>
+<table>
+  <tr><th>Title</th><th>Type</th><th>Location</th><th>Deadline</th></tr>
+  {% for job in active_jobs %}
+  <tr>
+    <td>{{ job.title }}</td>
+    <td>{{ job.get_employment_type_display }}</td>
+    <td>{{ job.location }}</td>
+    <td>{{ job.application_deadline }}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="4">No active job posts.</td></tr>
+  {% endfor %}
+</table>
+
+<h3>Closed Job Posts</h3>
+<table>
+  <tr><th>Title</th><th>Status</th><th>Location</th><th>Deadline</th></tr>
+  {% for job in closed_jobs %}
+  <tr>
+    <td>{{ job.title }}</td>
+    <td>{{ job.get_status_display }}</td>
+    <td>{{ job.location }}</td>
+    <td>{{ job.application_deadline }}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="4">No closed job posts.</td></tr>
+  {% endfor %}
+</table>
+
+<div style="margin-top:16px; display:flex; gap:8px;">
+  <a class="btn" href="{% url 'employer_edit' employer.pk %}">Edit</a>
+  <a class="btn gray" href="{% url 'employer_list' %}">Back to list</a>
+</div>
+{% endblock %}

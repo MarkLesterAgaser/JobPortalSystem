@@ -27,6 +27,7 @@
     <td><span class="badge {{ e.status }}">{{ e.get_status_display }}</span></td>
     <td>
       <a href="{% url 'employer_detail' e.pk %}">View</a> |
+      <a href="{% url 'employer_profile' e.pk %}">Profile</a> |
       <a href="{% url 'employer_edit' e.pk %}">Edit</a>
     </td>
   </tr>

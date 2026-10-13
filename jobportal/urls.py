@@ -8,4 +8,5 @@ urlpatterns = [
     path('employers/<int:pk>/', views.employer_detail, name='employer_detail'),
     path('employers/<int:pk>/edit/', views.employer_edit, name='employer_edit'),
     path('employers/<int:pk>/toggle/', views.employer_toggle, name='employer_toggle'),
+    path('employers/<int:pk>/profile/', views.employer_profile, name='employer_profile'),
 ]

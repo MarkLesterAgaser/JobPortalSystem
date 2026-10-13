@@ -4,7 +4,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
 
 from .forms import EmployerForm
-from .models import Employer
+from .models import Application, Employer, Hiring
 
 
 def employer_list(request):
@@ -69,3 +69,23 @@ def employer_toggle(request, pk):
     employer.save()
     messages.success(request, f'{employer.company_name} is now {employer.status}.')
     return redirect('employer_detail', pk=employer.pk)
+
+def employer_profile(request, pk):
+    employer = get_object_or_404(Employer, pk=pk)
+    job_posts = employer.job_posts.all().order_by('-created_at')
+    active_jobs = job_posts.filter(status='published')
+    closed_jobs = job_posts.filter(status__in=['closed', 'filled'])
+    applicant_count = (
+        Application.objects.filter(job_post__employer=employer)
+        .values('applicant').distinct().count()
+    )
+    hire_count = Hiring.objects.filter(
+        application__job_post__employer=employer, status='hired'
+    ).count()
+    return render(request, 'jobportal/employer_profile.html', {
+        'employer': employer,
+        'active_jobs': active_jobs,
+        'closed_jobs': closed_jobs,
+        'applicant_count': applicant_count,
+        'hire_count': hire_count,
+    })
