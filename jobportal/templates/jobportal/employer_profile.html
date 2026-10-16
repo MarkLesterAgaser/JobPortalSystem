@@ -72,5 +72,6 @@
 <div style="margin-top:16px; display:flex; gap:8px;">
   <a class="btn" href="{% url 'employer_edit' employer.pk %}">Edit</a>
   <a class="btn gray" href="{% url 'employer_list' %}">Back to list</a>
+  <a class="btn" href="{% url 'employer_job_history' employer.pk %}">Job Post History</a>
 </div>
 {% endblock %}

@@ -1,10 +1,11 @@
 from django.contrib import messages
-from django.db.models import Q
+from django.db.models import Count, Q
+from django.utils.dateparse import parse_date
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
 
 from .forms import EmployerForm
-from .models import Application, Employer, Hiring
+from .models import Application, Employer, Hiring, JobPost
 
 
 def employer_list(request):
@@ -88,4 +89,38 @@ def employer_profile(request, pk):
         'closed_jobs': closed_jobs,
         'applicant_count': applicant_count,
         'hire_count': hire_count,
+    })
+
+def employer_job_history(request, pk):
+    employer = get_object_or_404(Employer, pk=pk)
+    jobs = employer.job_posts.annotate(
+        applicant_total=Count('applications')
+    ).order_by('-created_at')
+
+    status = request.GET.get('status', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+
+    if status in dict(JobPost.STATUS_CHOICES):
+        jobs = jobs.filter(status=status)
+    else:
+        status = ''
+
+    try:
+        start = parse_date(date_from) if date_from else None
+        end = parse_date(date_to) if date_to else None
+    except ValueError:
+        start = end = None
+    if start:
+        jobs = jobs.filter(created_at__date__gte=start)
+    if end:
+        jobs = jobs.filter(created_at__date__lte=end)
+
+    return render(request, 'jobportal/employer_job_history.html', {
+        'employer': employer,
+        'jobs': jobs,
+        'status': status,
+        'date_from': date_from,
+        'date_to': date_to,
+        'status_choices': JobPost.STATUS_CHOICES,
     })

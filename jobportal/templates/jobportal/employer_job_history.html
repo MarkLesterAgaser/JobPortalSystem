@@ -1,0 +1,36 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Job Post History{% endblock %}
+{% block content %}
+<h2>{{ employer.company_name }} Job Post History</h2>
+
+<form method="get" class="bar">
+  <select name="status">
+    <option value="">All statuses</option>
+    {% for value, label in status_choices %}
+    <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <input type="date" name="date_from" value="{{ date_from }}">
+  <input type="date" name="date_to" value="{{ date_to }}">
+  <button class="btn" type="submit">Filter</button>
+  <a class="btn gray" href="{% url 'employer_job_history' employer.pk %}">Reset</a>
+</form>
+
+<table>
+  <tr><th>Job Post</th><th>Date Posted</th><th>Applicants</th><th>Status</th></tr>
+  {% for job in jobs %}
+  <tr>
+    <td>{{ job.title }}</td>
+    <td>{{ job.created_at|date:"M d, Y" }}</td>
+    <td>{{ job.applicant_total }}</td>
+    <td>{{ job.get_status_display }}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="4">No job posts found.</td></tr>
+  {% endfor %}
+</table>
+
+<div style="margin-top:16px; display:flex; gap:8px;">
+  <a class="btn gray" href="{% url 'employer_profile' employer.pk %}">Back to profile</a>
+</div>
+{% endblock %}
