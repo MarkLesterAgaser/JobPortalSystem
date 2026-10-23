@@ -18,10 +18,22 @@
 <table>
   <tr>
     <th>Company</th><th>Contact Person</th><th>Email</th><th>Status</th><th>Actions</th>
+    <th style="background:#fce9f0;">Course</th>
   </tr>
   {% for e in employers %}
   <tr>
     <td>{{ e.company_name }}</td>
+        <td style="background:#fce9f0;">
+      <form method="post" action="{% url 'employer_set_course' e.pk %}">
+        {% csrf_token %}
+        <select name="course" onchange="this.form.submit()">
+          <option value="">Select a course</option>
+          {% for c in courses %}
+          <option value="{{ c.pk }}" {% if e.course_id == c.pk %}selected{% endif %}>{{ c.course_name }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </td>
     <td>{{ e.contact_person }}</td>
     <td>{{ e.email }}</td>
     <td><span class="badge {{ e.status }}">{{ e.get_status_display }}</span></td>
@@ -32,7 +44,7 @@
     </td>
   </tr>
   {% empty %}
-  <tr><td colspan="5">No employers found.</td></tr>
+  <tr><td colspan="6">No employers found.</td></tr>
   {% endfor %}
 </table>
 {% endblock %}

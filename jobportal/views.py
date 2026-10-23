@@ -9,7 +9,7 @@ from .models import Application, Course, Employer, Enrollment, Hiring, JobCatego
 
 
 def employer_list(request):
-    employers = Employer.objects.all().order_by('company_name')
+    employers = Employer.objects.select_related('course').order_by('company_name')
     query = request.GET.get('q', '').strip()
     status = request.GET.get('status', '')
 
@@ -26,6 +26,7 @@ def employer_list(request):
         'employers': employers,
         'query': query,
         'status': status,
+        'courses': Course.objects.all(),
     })
 
 
@@ -276,3 +277,12 @@ def enrollment_delete(request, pk):
     enrollment.delete()
     messages.success(request, 'Enrollment was deleted.')
     return redirect('enrollment_list')
+
+@require_POST
+def employer_set_course(request, pk):
+    employer = get_object_or_404(Employer, pk=pk)
+    course_id = request.POST.get('course', '')
+    employer.course = get_object_or_404(Course, pk=course_id) if course_id else None
+    employer.save()
+    messages.success(request, f'Course saved for {employer.company_name}.')
+    return redirect('employer_list')

@@ -22,4 +22,5 @@ urlpatterns = [
     path('enrollments/add/', views.enrollment_add, name='enrollment_add'),
     path('enrollments/<int:pk>/edit/', views.enrollment_edit, name='enrollment_edit'),
     path('enrollments/<int:pk>/delete/', views.enrollment_delete, name='enrollment_delete'),
+    path('employers/<int:pk>/course/', views.employer_set_course, name='employer_set_course'),
 ]
