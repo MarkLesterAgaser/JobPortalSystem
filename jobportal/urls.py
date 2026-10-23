@@ -14,4 +14,12 @@ urlpatterns = [
     path('categories/add/', views.category_add, name='category_add'),
     path('categories/<int:pk>/edit/', views.category_edit, name='category_edit'),
     path('categories/<int:pk>/toggle/', views.category_toggle, name='category_toggle'),
+    path('courses/', views.course_list, name='course_list'),
+    path('courses/add/', views.course_add, name='course_add'),
+    path('courses/<int:pk>/edit/', views.course_edit, name='course_edit'),
+    path('courses/<int:pk>/delete/', views.course_delete, name='course_delete'),
+    path('enrollments/', views.enrollment_list, name='enrollment_list'),
+    path('enrollments/add/', views.enrollment_add, name='enrollment_add'),
+    path('enrollments/<int:pk>/edit/', views.enrollment_edit, name='enrollment_edit'),
+    path('enrollments/<int:pk>/delete/', views.enrollment_delete, name='enrollment_delete'),
 ]

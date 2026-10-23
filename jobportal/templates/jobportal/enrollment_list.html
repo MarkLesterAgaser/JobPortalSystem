@@ -1,0 +1,31 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Enrollment records{% endblock %}
+{% block content %}
+<h2>Enrollment records</h2>
+
+<div class="bar">
+  <a class="btn" href="{% url 'enrollment_add' %}">Add enrollment</a>
+</div>
+
+<table>
+  <tr><th>ID</th><th>Student name</th><th>Course</th><th>Date</th><th>Actions</th></tr>
+  {% for e in enrollments %}
+  <tr>
+    <td>{{ e.id }}</td>
+    <td>{{ e.student_name }}</td>
+    <td>{% if e.course %}{{ e.course.course_name }}{% else %}Not set{% endif %}</td>
+    <td>{{ e.enrollment_date|date:"Y/m/d" }}</td>
+    <td>
+      <a href="{% url 'enrollment_edit' e.pk %}">Edit</a>
+      <form method="post" action="{% url 'enrollment_delete' e.pk %}" class="inline"
+            onsubmit="return confirm('Delete this record?');">
+        {% csrf_token %}
+        <button type="submit" class="link-btn">Delete</button>
+      </form>
+    </td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="5">No enrollment records yet.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

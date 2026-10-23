@@ -19,6 +19,7 @@
     --good: #2f855a;
     --idle: #a99ca3;
     --bad: #a12622;
+    
   }
   * { box-sizing: border-box; }
   body {
@@ -104,6 +105,9 @@
     main { padding: 20px 16px 40px; }
     table { display: block; overflow-x: auto; }
   }
+
+  .side .group { display: block; color: #f8bbd0; font-size: 0.8rem; margin: 18px 0 4px; }
+
 </style>
 </head>
 <body>
@@ -114,6 +118,13 @@
       <a href="{% url 'employer_list' %}" {% if request.path == '/' or '/employers' in request.path %}class="current"{% endif %}>Employers</a>
       <a href="{% url 'category_list' %}" {% if '/categories' in request.path %}class="current"{% endif %}>Job categories</a>
       <a href="/admin/">Admin</a>
+      <a href="{% url 'enrollment_list' %}" {% if '/enrollments' in request.path %}class="current"{% endif %}>Student Enrollment</a>
+      <span class="group">Course Management</span>
+      <a href="{% url 'course_list' %}">Courses</a>
+      <a href="{% url 'course_add' %}">Add Course</a>
+      <a href="{% url 'course_list' %}">View Courses</a>
+      <a href="{% url 'course_list' %}?mode=edit">Edit Course</a>
+      <a href="{% url 'course_list' %}?mode=delete">Delete Course</a>
     </nav>
   </aside>
   <main>

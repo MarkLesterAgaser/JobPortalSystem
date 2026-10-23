@@ -1,0 +1,32 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Courses{% endblock %}
+{% block content %}
+<h2>Courses</h2>
+{% if mode == 'edit' %}<p>Choose a course and click Edit.</p>{% endif %}
+{% if mode == 'delete' %}<p>Choose a course and click Delete.</p>{% endif %}
+
+<div class="bar">
+  <a class="btn" href="{% url 'course_add' %}">Add course</a>
+</div>
+
+<table>
+  <tr><th>ID</th><th>Course name</th><th>Records using it</th><th>Actions</th></tr>
+  {% for c in courses %}
+  <tr>
+    <td>{{ c.id }}</td>
+    <td>{{ c.course_name }}</td>
+    <td>{{ c.record_total }}</td>
+    <td>
+      <a href="{% url 'course_edit' c.pk %}">Edit</a>
+      <form method="post" action="{% url 'course_delete' c.pk %}" class="inline"
+            onsubmit="return confirm('Delete this course?');">
+        {% csrf_token %}
+        <button type="submit" class="link-btn">Delete</button>
+      </form>
+    </td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="4">No courses yet. Add the first one.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}
