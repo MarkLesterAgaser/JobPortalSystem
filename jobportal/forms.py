@@ -3,12 +3,18 @@ from .models import Course, Employer, Enrollment, JobCategory
 
 
 class EmployerForm(forms.ModelForm):
+    course = forms.ModelChoiceField(
+        queryset=Course.objects.all(),
+        empty_label='Select a course',
+        error_messages={'required': 'Please select a course.'},
+    )
+
     class Meta:
         model = Employer
         fields = [
             'company_name', 'company_type', 'contact_person',
             'contact_number', 'email', 'address', 'website',
-            'company_description', 'status',
+            'company_description', 'course', 'status',
         ]
         widgets = {
             'company_description': forms.Textarea(attrs={'rows': 4}),

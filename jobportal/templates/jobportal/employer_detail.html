@@ -7,6 +7,7 @@
 
 <table>
   <tr><th>Company Type</th><td>{{ employer.company_type }}</td></tr>
+  <tr><th>Course</th><td>{% if employer.course %}{{ employer.course.course_name }}{% else %}Not set{% endif %}</td></tr>
   <tr><th>Contact Person</th><td>{{ employer.contact_person }}</td></tr>
   <tr><th>Contact Number</th><td>{{ employer.contact_number }}</td></tr>
   <tr><th>Email</th><td>{{ employer.email }}</td></tr>
