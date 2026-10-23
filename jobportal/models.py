@@ -16,6 +16,7 @@ class Course(models.Model):
 class Employer(models.Model):
     STATUS_CHOICES = [('active', 'Active'), ('inactive', 'Inactive')]
 
+
     company_name = models.CharField(max_length=200)
     company_type = models.CharField(max_length=100)
     contact_person = models.CharField(max_length=150)
@@ -25,6 +26,7 @@ class Employer(models.Model):
     website = models.URLField(blank=True)
     company_description = models.TextField(blank=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
+    course = models.ForeignKey(Course, on_delete=models.PROTECT, null=True, blank=True,related_name='employers',)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
