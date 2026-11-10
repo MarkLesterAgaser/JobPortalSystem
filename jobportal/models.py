@@ -3,19 +3,8 @@ from django.contrib.auth.models import User
 
 
 # ---------- EMPLOYER MODULE ----------
-
-# class Course(models.Model):
-#     course_name = models.CharField(max_length=100, unique=True)
-#
-#     class Meta:
-#         ordering = ['id']
-#
-#     def __str__(self):
-#         return self.course_name
-
 class Employer(models.Model):
     STATUS_CHOICES = [('active', 'Active'), ('inactive', 'Inactive')]
-
 
     company_name = models.CharField(max_length=200)
     company_type = models.CharField(max_length=100)
@@ -26,7 +15,6 @@ class Employer(models.Model):
     website = models.URLField(blank=True)
     company_description = models.TextField(blank=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
-    # course = models.ForeignKey(Course, on_delete=models.PROTECT, null=True, blank=True,related_name='employers',)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -254,18 +242,3 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.username} ({self.role})"
-
-# class Enrollment(models.Model):
-#     student_name = models.CharField(max_length=150)
-#     college_id = models.CharField(max_length=30)
-#     course = models.ForeignKey(
-#         Course, on_delete=models.PROTECT, null=True, blank=True,
-#         related_name='enrollments',
-#     )
-#     enrollment_date = models.DateField()
-#
-#     class Meta:
-#         ordering = ['id']
-#
-#     def __str__(self):
-#         return self.student_name
