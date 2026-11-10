@@ -4,8 +4,8 @@ from django.utils.dateparse import parse_date
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
 
-from .forms import CourseForm, EmployerForm, EnrollmentForm, JobCategoryForm
-from .models import Application, Course, Employer, Enrollment, Hiring, JobCategory, JobPost
+from .forms import CourseForm, EmployerForm, JobCategoryForm
+from .models import Application, Course, Employer, Hiring, JobCategory, JobPost
 
 
 def employer_list(request):
@@ -186,9 +186,7 @@ def category_toggle(request, pk):
     return redirect('category_list')
 
 def course_list(request):
-    courses = Course.objects.annotate(
-        record_total=Count('enrollments')
-    ).order_by('id')
+    courses = Course.objects.order_by('id')
     return render(request, 'jobportal/course_list.html', {
         'courses': courses,
         'mode': request.GET.get('mode', ''),
@@ -235,48 +233,48 @@ def course_delete(request, pk):
         messages.error(request, f'{name} cannot be deleted because records still use it.')
     return redirect('course_list')
 
-def enrollment_list(request):
-    enrollments = Enrollment.objects.select_related('course').order_by('id')
-    return render(request, 'jobportal/enrollment_list.html', {
-        'enrollments': enrollments,
-    })
-
-
-def enrollment_add(request):
-    if request.method == 'POST':
-        form = EnrollmentForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Enrollment was saved.')
-            return redirect('enrollment_list')
-    else:
-        form = EnrollmentForm()
-    return render(request, 'jobportal/enrollment_form.html', {
-        'form': form, 'title': 'Student enrollment',
-    })
-
-
-def enrollment_edit(request, pk):
-    enrollment = get_object_or_404(Enrollment, pk=pk)
-    if request.method == 'POST':
-        form = EnrollmentForm(request.POST, instance=enrollment)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Enrollment was updated.')
-            return redirect('enrollment_list')
-    else:
-        form = EnrollmentForm(instance=enrollment)
-    return render(request, 'jobportal/enrollment_form.html', {
-        'form': form, 'title': 'Edit enrollment',
-    })
-
-
-@require_POST
-def enrollment_delete(request, pk):
-    enrollment = get_object_or_404(Enrollment, pk=pk)
-    enrollment.delete()
-    messages.success(request, 'Enrollment was deleted.')
-    return redirect('enrollment_list')
+# def enrollment_list(request):
+#     enrollments = Enrollment.objects.select_related('course').order_by('id')
+#     return render(request, 'jobportal/enrollment_list.html', {
+#         'enrollments': enrollments,
+#     })
+#
+#
+# def enrollment_add(request):
+#     if request.method == 'POST':
+#         form = EnrollmentForm(request.POST)
+#         if form.is_valid():
+#             form.save()
+#             messages.success(request, 'Enrollment was saved.')
+#             return redirect('enrollment_list')
+#     else:
+#         form = EnrollmentForm()
+#     return render(request, 'jobportal/enrollment_form.html', {
+#         'form': form, 'title': 'Student enrollment',
+#     })
+#
+#
+# def enrollment_edit(request, pk):
+#     enrollment = get_object_or_404(Enrollment, pk=pk)
+#     if request.method == 'POST':
+#         form = EnrollmentForm(request.POST, instance=enrollment)
+#         if form.is_valid():
+#             form.save()
+#             messages.success(request, 'Enrollment was updated.')
+#             return redirect('enrollment_list')
+#     else:
+#         form = EnrollmentForm(instance=enrollment)
+#     return render(request, 'jobportal/enrollment_form.html', {
+#         'form': form, 'title': 'Edit enrollment',
+#     })
+#
+#
+# @require_POST
+# def enrollment_delete(request, pk):
+#     enrollment = get_object_or_404(Enrollment, pk=pk)
+#     enrollment.delete()
+#     messages.success(request, 'Enrollment was deleted.')
+#     return redirect('enrollment_list')
 
 @require_POST
 def employer_set_course(request, pk):

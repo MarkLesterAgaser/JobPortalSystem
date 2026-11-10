@@ -255,18 +255,17 @@ class UserProfile(models.Model):
     def __str__(self):
         return f"{self.user.username} ({self.role})"
 
-class Enrollment(models.Model):
-    student_name = models.CharField(max_length=150)
-    college_id = models.CharField(max_length=30)
-    course = models.ForeignKey(
-        Course, on_delete=models.PROTECT, null=True, blank=True,
-        related_name='enrollments',
-    )
-    enrollment_date = models.DateField()
-
-    class Meta:
-        ordering = ['id']
-
-    def __str__(self):
-        return self.student_name
-
+# class Enrollment(models.Model):
+#     student_name = models.CharField(max_length=150)
+#     college_id = models.CharField(max_length=30)
+#     course = models.ForeignKey(
+#         Course, on_delete=models.PROTECT, null=True, blank=True,
+#         related_name='enrollments',
+#     )
+#     enrollment_date = models.DateField()
+#
+#     class Meta:
+#         ordering = ['id']
+#
+#     def __str__(self):
+#         return self.student_name

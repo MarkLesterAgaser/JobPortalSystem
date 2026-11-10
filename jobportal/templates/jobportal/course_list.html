@@ -10,12 +10,11 @@
 </div>
 
 <table>
-  <tr><th>ID</th><th>Course name</th><th>Records using it</th><th>Actions</th></tr>
+  <tr><th>ID</th><th>Course name</th><th>Actions</th></tr>
   {% for c in courses %}
   <tr>
     <td>{{ c.id }}</td>
     <td>{{ c.course_name }}</td>
-    <td>{{ c.record_total }}</td>
     <td>
       <a href="{% url 'course_edit' c.pk %}">Edit</a>
       <form method="post" action="{% url 'course_delete' c.pk %}" class="inline"
@@ -26,7 +25,7 @@
     </td>
   </tr>
   {% empty %}
-  <tr><td colspan="4">No courses yet. Add the first one.</td></tr>
+  <tr><td colspan="3">No courses yet. Add the first one.</td></tr>
   {% endfor %}
 </table>
 {% endblock %}

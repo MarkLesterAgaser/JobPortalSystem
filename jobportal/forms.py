@@ -1,5 +1,5 @@
 from django import forms
-from .models import Course, Employer, Enrollment, JobCategory
+from .models import Course, Employer, JobCategory
 
 
 class EmployerForm(forms.ModelForm):
@@ -53,16 +53,16 @@ class CourseForm(forms.ModelForm):
             raise forms.ValidationError('This course already exists.')
         return name
 
-class EnrollmentForm(forms.ModelForm):
-    course = forms.ModelChoiceField(
-        queryset=Course.objects.all(),
-        empty_label='Select a course',
-        error_messages={'required': 'Please select a course.'},
-    )
-
-    class Meta:
-        model = Enrollment
-        fields = ['student_name', 'college_id', 'course', 'enrollment_date']
-        widgets = {
-            'enrollment_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
-        }
+# class EnrollmentForm(forms.ModelForm):
+#     course = forms.ModelChoiceField(
+#         queryset=Course.objects.all(),
+#         empty_label='Select a course',
+#         error_messages={'required': 'Please select a course.'},
+#     )
+#
+#     class Meta:
+#         model = Enrollment
+#         fields = ['student_name', 'college_id', 'course', 'enrollment_date']
+#         widgets = {
+#             'enrollment_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+#         }
