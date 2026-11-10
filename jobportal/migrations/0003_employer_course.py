@@ -11,9 +11,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='employer',
-            name='course',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='employers', to='jobportal.course'),
-        ),
+        # migrations.AddField(
+        #     model_name='employer',
+        #     name='course',
+        #     field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='employers', to='jobportal.course'),
+        # ),
     ]

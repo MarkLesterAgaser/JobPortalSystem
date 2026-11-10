@@ -119,12 +119,14 @@
       <a href="{% url 'category_list' %}" {% if '/categories' in request.path %}class="current"{% endif %}>Job categories</a>
       <a href="/admin/">Admin</a>
       {# <a href="{% url 'enrollment_list' %}" {% if '/enrollments' in request.path %}class="current"{% endif %}>Student Enrollment</a> #}
+      {% comment %}
       <span class="group">Course Management</span>
       <a href="{% url 'course_list' %}">Courses</a>
       <a href="{% url 'course_add' %}">Add Course</a>
       <a href="{% url 'course_list' %}">View Courses</a>
       <a href="{% url 'course_list' %}?mode=edit">Edit Course</a>
       <a href="{% url 'course_list' %}?mode=delete">Delete Course</a>
+      {% endcomment %}
     </nav>
   </aside>
   <main>

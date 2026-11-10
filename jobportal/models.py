@@ -4,14 +4,14 @@ from django.contrib.auth.models import User
 
 # ---------- EMPLOYER MODULE ----------
 
-class Course(models.Model):
-    course_name = models.CharField(max_length=100, unique=True)
-
-    class Meta:
-        ordering = ['id']
-
-    def __str__(self):
-        return self.course_name
+# class Course(models.Model):
+#     course_name = models.CharField(max_length=100, unique=True)
+#
+#     class Meta:
+#         ordering = ['id']
+#
+#     def __str__(self):
+#         return self.course_name
 
 class Employer(models.Model):
     STATUS_CHOICES = [('active', 'Active'), ('inactive', 'Inactive')]
@@ -26,7 +26,7 @@ class Employer(models.Model):
     website = models.URLField(blank=True)
     company_description = models.TextField(blank=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
-    course = models.ForeignKey(Course, on_delete=models.PROTECT, null=True, blank=True,related_name='employers',)
+    # course = models.ForeignKey(Course, on_delete=models.PROTECT, null=True, blank=True,related_name='employers',)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

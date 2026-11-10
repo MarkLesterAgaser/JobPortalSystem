@@ -1,15 +1,15 @@
 from django.contrib import messages
-from django.db.models import Count, ProtectedError, Q
+from django.db.models import Count, Q
 from django.utils.dateparse import parse_date
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
 
-from .forms import CourseForm, EmployerForm, JobCategoryForm
-from .models import Application, Course, Employer, Hiring, JobCategory, JobPost
+from .forms import EmployerForm, JobCategoryForm
+from .models import Application, Employer, Hiring, JobCategory, JobPost
 
 
 def employer_list(request):
-    employers = Employer.objects.select_related('course').order_by('company_name')
+    employers = Employer.objects.order_by('company_name')
     query = request.GET.get('q', '').strip()
     status = request.GET.get('status', '')
 
@@ -26,7 +26,6 @@ def employer_list(request):
         'employers': employers,
         'query': query,
         'status': status,
-        'courses': Course.objects.all(),
     })
 
 
@@ -185,53 +184,53 @@ def category_toggle(request, pk):
     messages.success(request, f'{category.name} is now {state}.')
     return redirect('category_list')
 
-def course_list(request):
-    courses = Course.objects.order_by('id')
-    return render(request, 'jobportal/course_list.html', {
-        'courses': courses,
-        'mode': request.GET.get('mode', ''),
-    })
-
-
-def course_add(request):
-    if request.method == 'POST':
-        form = CourseForm(request.POST)
-        if form.is_valid():
-            course = form.save()
-            messages.success(request, f'{course.course_name} was added.')
-            return redirect('course_list')
-    else:
-        form = CourseForm()
-    return render(request, 'jobportal/course_form.html', {
-        'form': form, 'title': 'Add course',
-    })
-
-
-def course_edit(request, pk):
-    course = get_object_or_404(Course, pk=pk)
-    if request.method == 'POST':
-        form = CourseForm(request.POST, instance=course)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Course was updated.')
-            return redirect('course_list')
-    else:
-        form = CourseForm(instance=course)
-    return render(request, 'jobportal/course_form.html', {
-        'form': form, 'title': 'Edit course',
-    })
-
-
-@require_POST
-def course_delete(request, pk):
-    course = get_object_or_404(Course, pk=pk)
-    name = course.course_name
-    try:
-        course.delete()
-        messages.success(request, f'{name} was deleted.')
-    except ProtectedError:
-        messages.error(request, f'{name} cannot be deleted because records still use it.')
-    return redirect('course_list')
+# def course_list(request):
+#     courses = Course.objects.order_by('id')
+#     return render(request, 'jobportal/course_list.html', {
+#         'courses': courses,
+#         'mode': request.GET.get('mode', ''),
+#     })
+#
+#
+# def course_add(request):
+#     if request.method == 'POST':
+#         form = CourseForm(request.POST)
+#         if form.is_valid():
+#             course = form.save()
+#             messages.success(request, f'{course.course_name} was added.')
+#             return redirect('course_list')
+#     else:
+#         form = CourseForm()
+#     return render(request, 'jobportal/course_form.html', {
+#         'form': form, 'title': 'Add course',
+#     })
+#
+#
+# def course_edit(request, pk):
+#     course = get_object_or_404(Course, pk=pk)
+#     if request.method == 'POST':
+#         form = CourseForm(request.POST, instance=course)
+#         if form.is_valid():
+#             form.save()
+#             messages.success(request, 'Course was updated.')
+#             return redirect('course_list')
+#     else:
+#         form = CourseForm(instance=course)
+#     return render(request, 'jobportal/course_form.html', {
+#         'form': form, 'title': 'Edit course',
+#     })
+#
+#
+# @require_POST
+# def course_delete(request, pk):
+#     course = get_object_or_404(Course, pk=pk)
+#     name = course.course_name
+#     try:
+#         course.delete()
+#         messages.success(request, f'{name} was deleted.')
+#     except ProtectedError:
+#         messages.error(request, f'{name} cannot be deleted because records still use it.')
+#     return redirect('course_list')
 
 # def enrollment_list(request):
 #     enrollments = Enrollment.objects.select_related('course').order_by('id')
@@ -276,11 +275,11 @@ def course_delete(request, pk):
 #     messages.success(request, 'Enrollment was deleted.')
 #     return redirect('enrollment_list')
 
-@require_POST
-def employer_set_course(request, pk):
-    employer = get_object_or_404(Employer, pk=pk)
-    course_id = request.POST.get('course', '')
-    employer.course = get_object_or_404(Course, pk=course_id) if course_id else None
-    employer.save()
-    messages.success(request, f'Course saved for {employer.company_name}.')
-    return redirect('employer_list')
+# @require_POST
+# def employer_set_course(request, pk):
+#     employer = get_object_or_404(Employer, pk=pk)
+#     course_id = request.POST.get('course', '')
+#     employer.course = get_object_or_404(Course, pk=course_id) if course_id else None
+#     employer.save()
+#     messages.success(request, f'Course saved for {employer.company_name}.')
+#     return redirect('employer_list')
