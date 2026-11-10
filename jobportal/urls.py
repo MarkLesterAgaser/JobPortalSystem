@@ -14,4 +14,10 @@ urlpatterns = [
     path('categories/add/', views.category_add, name='category_add'),
     path('categories/<int:pk>/edit/', views.category_edit, name='category_edit'),
     path('categories/<int:pk>/toggle/', views.category_toggle, name='category_toggle'),
+    path('jobs/', views.jobpost_list, name='jobpost_list'),
+    path('jobs/add/', views.jobpost_add, name='jobpost_add'),
+    path('jobs/<int:pk>/edit/', views.jobpost_edit, name='jobpost_edit'),
+    path('jobs/<int:pk>/delete/', views.jobpost_delete, name='jobpost_delete'),
+    path('jobs/<int:pk>/requirements/', views.jobpost_requirements, name='jobpost_requirements'),
+    path('requirements/<int:pk>/delete/', views.requirement_delete, name='requirement_delete'),
 ]

@@ -4,8 +4,8 @@ from django.utils.dateparse import parse_date
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
 
-from .forms import EmployerForm, JobCategoryForm
-from .models import Application, Employer, Hiring, JobCategory, JobPost
+from .forms import EmployerForm, JobCategoryForm, JobPostForm, JobRequirementForm
+from .models import Application, Employer, Hiring, JobCategory, JobPost, JobRequirement
 
 
 def employer_list(request):
@@ -183,3 +183,96 @@ def category_toggle(request, pk):
     state = 'active' if category.is_active else 'inactive'
     messages.success(request, f'{category.name} is now {state}.')
     return redirect('category_list')
+
+
+def jobpost_list(request):
+    jobs = JobPost.objects.select_related('employer', 'category').annotate(
+        requirement_total=Count('requirements', distinct=True),
+        applicant_total=Count('applications', distinct=True),
+    ).order_by('-created_at')
+    query = request.GET.get('q', '').strip()
+    status = request.GET.get('status', '')
+
+    if query:
+        jobs = jobs.filter(
+            Q(title__icontains=query)
+            | Q(employer__company_name__icontains=query)
+        )
+    if status in dict(JobPost.STATUS_CHOICES):
+        jobs = jobs.filter(status=status)
+    else:
+        status = ''
+
+    return render(request, 'jobportal/jobpost_list.html', {
+        'jobs': jobs,
+        'query': query,
+        'status': status,
+        'status_choices': JobPost.STATUS_CHOICES,
+    })
+
+
+def jobpost_add(request):
+    if request.method == 'POST':
+        form = JobPostForm(request.POST)
+        if form.is_valid():
+            job = form.save()
+            messages.success(request, f'{job.title} was added.')
+            return redirect('jobpost_list')
+    else:
+        form = JobPostForm()
+    return render(request, 'jobportal/jobpost_form.html', {
+        'form': form, 'title': 'Add job post',
+    })
+
+
+def jobpost_edit(request, pk):
+    job = get_object_or_404(JobPost, pk=pk)
+    if request.method == 'POST':
+        form = JobPostForm(request.POST, instance=job)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Job post was updated.')
+            return redirect('jobpost_list')
+    else:
+        form = JobPostForm(instance=job)
+    return render(request, 'jobportal/jobpost_form.html', {
+        'form': form, 'title': 'Edit job post',
+    })
+
+
+def jobpost_delete(request, pk):
+    job = get_object_or_404(JobPost, pk=pk)
+    if request.method == 'POST':
+        title = job.title
+        job.delete()
+        messages.success(request, f'{title} was deleted.')
+        return redirect('jobpost_list')
+    return render(request, 'jobportal/jobpost_confirm_delete.html', {'job': job})
+
+
+def jobpost_requirements(request, pk):
+    job = get_object_or_404(JobPost, pk=pk)
+    if request.method == 'POST':
+        form = JobRequirementForm(request.POST)
+        if form.is_valid():
+            requirement = form.save(commit=False)
+            requirement.job_post = job
+            requirement.save()
+            messages.success(request, 'Requirement was added.')
+            return redirect('jobpost_requirements', pk=job.pk)
+    else:
+        form = JobRequirementForm()
+    return render(request, 'jobportal/jobpost_requirements.html', {
+        'job': job,
+        'requirements': job.requirements.all(),
+        'form': form,
+    })
+
+
+@require_POST
+def requirement_delete(request, pk):
+    requirement = get_object_or_404(JobRequirement, pk=pk)
+    job_pk = requirement.job_post_id
+    requirement.delete()
+    messages.success(request, 'Requirement was deleted.')
+    return redirect('jobpost_requirements', pk=job_pk)

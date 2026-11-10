@@ -1,0 +1,45 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Job requirements{% endblock %}
+{% block content %}
+<h2>Requirements for {{ job.title }}</h2>
+<p>{{ job.employer.company_name }}</p>
+<p><a class="btn gray" href="{% url 'jobpost_list' %}">Back to job posts</a></p>
+
+<table>
+  <tr>
+    <th>Education</th><th>Skills</th><th>Experience</th>
+    <th>Certifications</th><th>Other</th><th>Actions</th>
+  </tr>
+  {% for r in requirements %}
+  <tr>
+    <td>{{ r.education_qualification }}</td>
+    <td>{{ r.skills|linebreaksbr }}</td>
+    <td>{{ r.work_experience }}</td>
+    <td>{{ r.certifications }}</td>
+    <td>{{ r.other_qualifications|linebreaksbr }}</td>
+    <td>
+      <form method="post" action="{% url 'requirement_delete' r.pk %}" class="inline">
+        {% csrf_token %}
+        <button type="submit" class="link-btn">Delete</button>
+      </form>
+    </td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="6">No requirements yet. Add the first one below.</td></tr>
+  {% endfor %}
+</table>
+
+<h3>Add requirement</h3>
+<form method="post">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  {% for field in form %}
+  <p>
+    {{ field.label_tag }}<br>
+    {{ field }}
+    {{ field.errors }}
+  </p>
+  {% endfor %}
+  <button class="btn" type="submit">Add requirement</button>
+</form>
+{% endblock %}

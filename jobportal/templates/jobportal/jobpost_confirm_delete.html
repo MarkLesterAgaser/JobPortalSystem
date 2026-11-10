@@ -1,0 +1,11 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Delete job post{% endblock %}
+{% block content %}
+<h2>Delete {{ job.title }}?</h2>
+<p>This will also delete its requirements and applications.</p>
+<form method="post">
+  {% csrf_token %}
+  <button class="btn" type="submit">Delete</button>
+  <a class="btn gray" href="{% url 'jobpost_list' %}">Cancel</a>
+</form>
+{% endblock %}
