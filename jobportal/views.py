@@ -7,8 +7,15 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
 
-from .forms import EmployerForm, JobCategoryForm, JobPostForm, JobRequirementForm
-from .models import Application, Employer, Hiring, JobCategory, JobPost, JobRequirement
+from .forms import (
+    ApplicantEducationForm, ApplicantForm, ApplicantProfileInfoForm,
+    ApplicantSkillsExperienceForm, EmployerForm, JobCategoryForm,
+    JobPostForm, JobRequirementForm,
+)
+from .models import (
+    Applicant, ApplicantProfile, Application, Employer, Hiring,
+    JobCategory, JobPost, JobRequirement,
+)
 
 
 def employer_list(request):
@@ -279,6 +286,146 @@ def requirement_delete(request, pk):
     requirement.delete()
     messages.success(request, 'Requirement was deleted.')
     return redirect('jobpost_requirements', pk=job_pk)
+
+
+def next_applicant_number():
+    last = Applicant.objects.order_by('-id').first()
+    number_id = last.id + 1 if last else 1
+    number = f'APP-{number_id:04d}'
+    while Applicant.objects.filter(applicant_number=number).exists():
+        number_id += 1
+        number = f'APP-{number_id:04d}'
+    return number
+
+
+def get_profile(applicant):
+    profile, created = ApplicantProfile.objects.get_or_create(applicant=applicant)
+    return profile
+
+
+def applicant_list(request):
+    applicants = Applicant.objects.all().order_by('last_name', 'first_name')
+    query = request.GET.get('q', '').strip()
+    status = request.GET.get('status', '')
+
+    if query:
+        applicants = applicants.filter(
+            Q(first_name__icontains=query)
+            | Q(last_name__icontains=query)
+            | Q(applicant_number__icontains=query)
+            | Q(email__icontains=query)
+        )
+    if status in ('active', 'inactive'):
+        applicants = applicants.filter(status=status)
+    else:
+        status = ''
+
+    return render(request, 'jobportal/applicant_list.html', {
+        'applicants': applicants,
+        'query': query,
+        'status': status,
+    })
+
+
+def applicant_add(request):
+    if request.method == 'POST':
+        form = ApplicantForm(request.POST)
+        if form.is_valid():
+            applicant = form.save(commit=False)
+            applicant.applicant_number = next_applicant_number()
+            applicant.save()
+            get_profile(applicant)
+            messages.success(request, f'{applicant} was registered as {applicant.applicant_number}.')
+            return redirect('applicant_list')
+    else:
+        form = ApplicantForm()
+    return render(request, 'jobportal/applicant_form.html', {
+        'form': form, 'title': 'Register applicant',
+    })
+
+
+def applicant_edit(request, pk):
+    applicant = get_object_or_404(Applicant, pk=pk)
+    if request.method == 'POST':
+        form = ApplicantForm(request.POST, instance=applicant)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Applicant was updated.')
+            return redirect('applicant_list')
+    else:
+        form = ApplicantForm(instance=applicant)
+    return render(request, 'jobportal/applicant_form.html', {
+        'form': form, 'title': 'Edit applicant',
+    })
+
+
+@require_POST
+def applicant_toggle(request, pk):
+    applicant = get_object_or_404(Applicant, pk=pk)
+    applicant.status = 'inactive' if applicant.status == 'active' else 'active'
+    applicant.save()
+    messages.success(request, f'{applicant} is now {applicant.status}.')
+    return redirect('applicant_list')
+
+
+def applicant_profile(request, pk):
+    applicant = get_object_or_404(Applicant, pk=pk)
+    profile = get_profile(applicant)
+    checks = [
+        ('Career objective', applicant.career_objective),
+        ('Education', profile.education),
+        ('Skills', profile.skills),
+        ('Work experience', profile.work_experience),
+        ('Certifications', profile.certifications),
+        ('Training', profile.training),
+        ('References', profile.references),
+    ]
+    missing = [label for label, value in checks if not value.strip()]
+    completion = round((len(checks) - len(missing)) * 100 / len(checks))
+    return render(request, 'jobportal/applicant_profile.html', {
+        'applicant': applicant,
+        'profile': profile,
+        'completion': completion,
+        'missing': missing,
+        'application_total': applicant.applications.count(),
+    })
+
+
+def edit_profile_section(request, pk, form_class, title, message):
+    applicant = get_object_or_404(Applicant, pk=pk)
+    profile = get_profile(applicant)
+    if request.method == 'POST':
+        form = form_class(request.POST, instance=profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, message)
+            return redirect('applicant_profile', pk=applicant.pk)
+    else:
+        form = form_class(instance=profile)
+    return render(request, 'jobportal/applicant_section_form.html', {
+        'form': form, 'title': title, 'applicant': applicant,
+    })
+
+
+def applicant_profile_edit(request, pk):
+    return edit_profile_section(
+        request, pk, ApplicantProfileInfoForm,
+        'Edit training and references', 'Training and references were saved.',
+    )
+
+
+def applicant_education(request, pk):
+    return edit_profile_section(
+        request, pk, ApplicantEducationForm,
+        'Edit education', 'Education was saved.',
+    )
+
+
+def applicant_skills(request, pk):
+    return edit_profile_section(
+        request, pk, ApplicantSkillsExperienceForm,
+        'Edit skills and experience', 'Skills and experience were saved.',
+    )
 
 
 STATUS_ACTIONS = {

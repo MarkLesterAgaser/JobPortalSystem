@@ -25,4 +25,12 @@ urlpatterns = [
     path('jobs/<int:pk>/fill/', views.jobpost_set_status, {'action': 'fill'}, name='jobpost_fill'),
     path('browse/', views.job_search, name='job_search'),
     path('jobs/<int:pk>/', views.jobpost_detail, name='jobpost_detail'),
+    path('applicants/', views.applicant_list, name='applicant_list'),
+    path('applicants/add/', views.applicant_add, name='applicant_add'),
+    path('applicants/<int:pk>/edit/', views.applicant_edit, name='applicant_edit'),
+    path('applicants/<int:pk>/toggle/', views.applicant_toggle, name='applicant_toggle'),
+    path('applicants/<int:pk>/profile/', views.applicant_profile, name='applicant_profile'),
+    path('applicants/<int:pk>/profile/edit/', views.applicant_profile_edit, name='applicant_profile_edit'),
+    path('applicants/<int:pk>/education/', views.applicant_education, name='applicant_education'),
+    path('applicants/<int:pk>/skills/', views.applicant_skills, name='applicant_skills'),
 ]

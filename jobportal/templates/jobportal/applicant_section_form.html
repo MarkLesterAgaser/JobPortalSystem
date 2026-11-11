@@ -1,0 +1,18 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<h2>{{ title }}</h2>
+<p>{{ applicant.first_name }} {{ applicant.last_name }}</p>
+<form method="post">
+  {% csrf_token %}
+  {% for field in form %}
+    <div class="field">
+      {{ field.label_tag }}
+      {{ field }}
+      {% if field.errors %}<div class="error">{{ field.errors }}</div>{% endif %}
+    </div>
+  {% endfor %}
+  <button class="btn" type="submit">Save</button>
+  <a class="btn gray" href="{% url 'applicant_profile' applicant.pk %}">Cancel</a>
+</form>
+{% endblock %}

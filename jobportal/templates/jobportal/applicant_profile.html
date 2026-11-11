@@ -1,0 +1,52 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}{{ applicant.first_name }} {{ applicant.last_name }}{% endblock %}
+{% block content %}
+<h2>{{ applicant.first_name }} {{ applicant.last_name }}</h2>
+<p>
+  {{ applicant.applicant_number }}
+  <span class="badge {% if applicant.status == 'active' %}active{% else %}inactive{% endif %}">
+    {{ applicant.get_status_display }}
+  </span>
+</p>
+<p>Profile completion {{ completion }} percent.
+  {% if missing %}Still missing {{ missing|join:", " }}.{% endif %}
+</p>
+
+<p>
+  <a class="btn gray" href="{% url 'applicant_list' %}">Back to applicants</a>
+  <a class="btn" href="{% url 'applicant_edit' applicant.pk %}">Edit personal info</a>
+  <a class="btn" href="{% url 'applicant_profile_edit' applicant.pk %}">Edit training and references</a>
+</p>
+
+<table>
+  <tr><th>Contact number</th><td>{{ applicant.contact_number }}</td></tr>
+  <tr><th>Email</th><td>{{ applicant.email }}</td></tr>
+  <tr><th>Address</th><td>{{ applicant.address|default:"Not stated" }}</td></tr>
+  <tr><th>Date of birth</th><td>{{ applicant.date_of_birth|default:"Not stated" }}</td></tr>
+  <tr><th>Registered</th><td>{{ applicant.created_at|date:"F j, Y" }}</td></tr>
+  <tr><th>Applications</th><td>{{ application_total }}</td></tr>
+</table>
+
+<h3>Career objective</h3>
+<p>{{ applicant.career_objective|default:"Not added yet"|linebreaksbr }}</p>
+
+<h3>Education</h3>
+<p><a class="btn" href="{% url 'applicant_education' applicant.pk %}">Edit education</a></p>
+<p>{{ profile.education|default:"Not added yet"|linebreaksbr }}</p>
+
+<h3>Skills</h3>
+<p><a class="btn" href="{% url 'applicant_skills' applicant.pk %}">Edit skills, experience, and certifications</a></p>
+<p>{{ profile.skills|default:"Not added yet"|linebreaksbr }}</p>
+
+<h3>Work experience</h3>
+<p>{{ profile.work_experience|default:"Not added yet"|linebreaksbr }}</p>
+
+<h3>Certifications</h3>
+<p>{{ profile.certifications|default:"Not added yet"|linebreaksbr }}</p>
+
+<h3>Training and seminars</h3>
+<p>{{ profile.training|default:"Not added yet"|linebreaksbr }}</p>
+
+<h3>References</h3>
+<p>{{ profile.references|default:"Not added yet"|linebreaksbr }}</p>
+{% endblock %}

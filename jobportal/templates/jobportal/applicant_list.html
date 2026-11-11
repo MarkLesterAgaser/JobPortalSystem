@@ -1,0 +1,49 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Applicants{% endblock %}
+{% block content %}
+<h2>Applicants</h2>
+
+<form method="get" class="bar">
+  <input type="text" name="q" value="{{ query }}" placeholder="Search by name, number, or email">
+  <select name="status">
+    <option value="">All statuses</option>
+    <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+    <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+  </select>
+  <button class="btn" type="submit">Search</button>
+  <a class="btn gray" href="{% url 'applicant_list' %}">Reset</a>
+  <a class="btn" href="{% url 'applicant_add' %}" style="margin-left:auto;">Register applicant</a>
+</form>
+
+<table>
+  <tr>
+    <th>Number</th><th>Name</th><th>Contact</th><th>Email</th>
+    <th>Status</th><th>Actions</th>
+  </tr>
+  {% for a in applicants %}
+  <tr>
+    <td>{{ a.applicant_number }}</td>
+    <td>{{ a.first_name }} {{ a.last_name }}</td>
+    <td>{{ a.contact_number }}</td>
+    <td>{{ a.email }}</td>
+    <td>
+      <span class="badge {% if a.status == 'active' %}active{% else %}inactive{% endif %}">
+        {{ a.get_status_display }}
+      </span>
+    </td>
+    <td>
+      <a href="{% url 'applicant_profile' a.pk %}">Profile</a> |
+      <a href="{% url 'applicant_edit' a.pk %}">Edit</a>
+      <form method="post" action="{% url 'applicant_toggle' a.pk %}" class="inline">
+        {% csrf_token %}
+        <button type="submit" class="link-btn">
+          {% if a.status == 'active' %}Deactivate{% else %}Activate{% endif %}
+        </button>
+      </form>
+    </td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="6">No applicants yet. Register the first one.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

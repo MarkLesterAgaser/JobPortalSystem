@@ -1,7 +1,9 @@
 from datetime import date
 from django import forms
 from django.db.models import Q
-from .models import Employer, JobCategory, JobPost, JobRequirement
+from .models import (
+    Applicant, ApplicantProfile, Employer, JobCategory, JobPost, JobRequirement,
+)
 
 
 class EmployerForm(forms.ModelForm):
@@ -103,3 +105,98 @@ class JobRequirementForm(forms.ModelForm):
         if not any((cleaned.get(name) or '').strip() for name in self.fields):
             raise forms.ValidationError('Fill in at least one requirement.')
         return cleaned
+
+
+class ApplicantForm(forms.ModelForm):
+    class Meta:
+        model = Applicant
+        fields = [
+            'first_name', 'last_name', 'contact_number', 'email',
+            'address', 'date_of_birth', 'career_objective', 'status',
+        ]
+        labels = {
+            'date_of_birth': 'Date of birth',
+            'career_objective': 'Career objective',
+        }
+        widgets = {
+            'date_of_birth': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+            'career_objective': forms.Textarea(attrs={'rows': 4}),
+        }
+
+    def clean_contact_number(self):
+        number = self.cleaned_data['contact_number'].strip()
+        digits = [ch for ch in number if ch.isdigit()]
+        if any(ch not in '0123456789 +-()' for ch in number) or not 7 <= len(digits) <= 13:
+            raise forms.ValidationError('Enter a valid contact number.')
+        return number
+
+    def clean_email(self):
+        email = self.cleaned_data['email'].strip().lower()
+        duplicates = Applicant.objects.filter(email__iexact=email)
+        if self.instance.pk:
+            duplicates = duplicates.exclude(pk=self.instance.pk)
+        if duplicates.exists():
+            raise forms.ValidationError('An applicant with this email already exists.')
+        return email
+
+    def clean_date_of_birth(self):
+        dob = self.cleaned_data['date_of_birth']
+        if dob:
+            today = date.today()
+            if dob >= today:
+                raise forms.ValidationError('Date of birth must be in the past.')
+            age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+            if age < 16:
+                raise forms.ValidationError('The applicant must be at least 16 years old.')
+        return dob
+
+
+class ApplicantProfileInfoForm(forms.ModelForm):
+    class Meta:
+        model = ApplicantProfile
+        fields = ['training', 'references']
+        labels = {
+            'training': 'Training and seminars',
+            'references': 'References',
+        }
+        widgets = {
+            'training': forms.Textarea(attrs={'rows': 5}),
+            'references': forms.Textarea(attrs={'rows': 5}),
+        }
+
+
+class ApplicantEducationForm(forms.ModelForm):
+    class Meta:
+        model = ApplicantProfile
+        fields = ['education']
+        labels = {'education': 'Education history'}
+        help_texts = {'education': 'Write the school, course, and year graduated. Use one line for each entry.'}
+        widgets = {'education': forms.Textarea(attrs={'rows': 6})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['education'].required = True
+
+
+class ApplicantSkillsExperienceForm(forms.ModelForm):
+    class Meta:
+        model = ApplicantProfile
+        fields = ['skills', 'work_experience', 'certifications']
+        labels = {
+            'skills': 'Skills',
+            'work_experience': 'Work experience',
+            'certifications': 'Certifications',
+        }
+        help_texts = {
+            'skills': 'Write one skill on each line.',
+            'work_experience': 'Write the company, position, and years. Use one line for each job.',
+        }
+        widgets = {
+            'skills': forms.Textarea(attrs={'rows': 4}),
+            'work_experience': forms.Textarea(attrs={'rows': 5}),
+            'certifications': forms.Textarea(attrs={'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['skills'].required = True
