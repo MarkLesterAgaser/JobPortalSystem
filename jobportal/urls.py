@@ -20,4 +20,9 @@ urlpatterns = [
     path('jobs/<int:pk>/delete/', views.jobpost_delete, name='jobpost_delete'),
     path('jobs/<int:pk>/requirements/', views.jobpost_requirements, name='jobpost_requirements'),
     path('requirements/<int:pk>/delete/', views.requirement_delete, name='requirement_delete'),
+    path('jobs/<int:pk>/publish/', views.jobpost_set_status, {'action': 'publish'}, name='jobpost_publish'),
+    path('jobs/<int:pk>/close/', views.jobpost_set_status, {'action': 'close'}, name='jobpost_close'),
+    path('jobs/<int:pk>/fill/', views.jobpost_set_status, {'action': 'fill'}, name='jobpost_fill'),
+    path('browse/', views.job_search, name='job_search'),
+    path('jobs/<int:pk>/', views.jobpost_detail, name='jobpost_detail'),
 ]

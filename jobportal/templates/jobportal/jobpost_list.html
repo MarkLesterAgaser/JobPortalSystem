@@ -23,7 +23,7 @@
   </tr>
   {% for j in jobs %}
   <tr>
-    <td>{{ j.title }}</td>
+    <td><a href="{% url 'jobpost_detail' j.pk %}">{{ j.title }}</a></td>
     <td>{{ j.employer.company_name }}</td>
     <td>{{ j.category.name|default:"None" }}</td>
     <td>{{ j.application_deadline }}</td>
@@ -36,6 +36,7 @@
     <td>
       <a href="{% url 'jobpost_edit' j.pk %}">Edit</a> |
       <a href="{% url 'jobpost_delete' j.pk %}">Delete</a>
+      {% include 'jobportal/jobpost_status_buttons.html' %}
     </td>
   </tr>
   {% empty %}

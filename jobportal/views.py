@@ -1,6 +1,9 @@
+from datetime import date
+
 from django.contrib import messages
 from django.db.models import Count, Q
 from django.utils.dateparse import parse_date
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
 
@@ -276,3 +279,86 @@ def requirement_delete(request, pk):
     requirement.delete()
     messages.success(request, 'Requirement was deleted.')
     return redirect('jobpost_requirements', pk=job_pk)
+
+
+STATUS_ACTIONS = {
+    'publish': ('draft', 'published'),
+    'close': ('published', 'closed'),
+    'fill': ('published', 'filled'),
+}
+
+
+@require_POST
+def jobpost_set_status(request, pk, action):
+    job = get_object_or_404(JobPost, pk=pk)
+    needed, new_status = STATUS_ACTIONS[action]
+    if job.status != needed:
+        messages.error(request, f'Only a {needed} job post can use this action.')
+    elif action == 'publish' and job.employer.status != 'active':
+        messages.error(request, 'The employer is inactive. Activate the employer first.')
+    elif action == 'publish' and job.application_deadline < date.today():
+        messages.error(request, 'The deadline is in the past. Edit the job post first.')
+    elif action == 'publish' and not job.requirements.exists():
+        messages.error(request, 'Add at least one requirement before you publish.')
+    else:
+        job.status = new_status
+        job.save()
+        messages.success(request, f'{job.title} is now {job.get_status_display().lower()}.')
+    next_url = request.POST.get('next', '')
+    if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect('jobpost_list')
+
+
+def job_search(request):
+    jobs = JobPost.objects.select_related('employer', 'category').filter(
+        status='published', application_deadline__gte=date.today()
+    ).order_by('-created_at')
+    query = request.GET.get('q', '').strip()
+    category = request.GET.get('category', '')
+    employment_type = request.GET.get('employment_type', '')
+    location = request.GET.get('location', '').strip()
+    min_salary = request.GET.get('min_salary', '').strip()
+
+    if query:
+        jobs = jobs.filter(
+            Q(title__icontains=query)
+            | Q(description__icontains=query)
+            | Q(employer__company_name__icontains=query)
+        )
+    if category.isdigit():
+        jobs = jobs.filter(category_id=category)
+    else:
+        category = ''
+    if employment_type in dict(JobPost.EMPLOYMENT_TYPE_CHOICES):
+        jobs = jobs.filter(employment_type=employment_type)
+    else:
+        employment_type = ''
+    if location:
+        jobs = jobs.filter(location__icontains=location)
+    if min_salary.isdigit():
+        jobs = jobs.filter(salary_max__gte=min_salary)
+    else:
+        min_salary = ''
+
+    return render(request, 'jobportal/job_search.html', {
+        'jobs': jobs,
+        'query': query,
+        'category': category,
+        'employment_type': employment_type,
+        'location': location,
+        'min_salary': min_salary,
+        'categories': JobCategory.objects.filter(is_active=True).order_by('name'),
+        'type_choices': JobPost.EMPLOYMENT_TYPE_CHOICES,
+    })
+
+
+def jobpost_detail(request, pk):
+    job = get_object_or_404(
+        JobPost.objects.select_related('employer', 'category'), pk=pk
+    )
+    return render(request, 'jobportal/jobpost_detail.html', {
+        'job': job,
+        'requirements': job.requirements.all(),
+        'applicant_total': job.applications.count(),
+    })

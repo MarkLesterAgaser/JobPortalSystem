@@ -1,0 +1,54 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}{{ job.title }}{% endblock %}
+{% block content %}
+<h2>{{ job.title }}</h2>
+<p>
+  <span class="badge {% if job.status == 'published' %}active{% else %}inactive{% endif %}">
+    {{ job.get_status_display }}
+  </span>
+</p>
+
+<p>
+  <a class="btn gray" href="{% url 'jobpost_list' %}">Back to job posts</a>
+  <a class="btn" href="{% url 'jobpost_edit' job.pk %}">Edit</a>
+  <a class="btn" href="{% url 'jobpost_requirements' job.pk %}">Requirements</a>
+  {% include 'jobportal/jobpost_status_buttons.html' with j=job %}
+</p>
+
+<table>
+  <tr><th>Employer</th><td><a href="{% url 'employer_detail' job.employer.pk %}">{{ job.employer.company_name }}</a></td></tr>
+  <tr><th>Category</th><td>{{ job.category.name|default:"None" }}</td></tr>
+  <tr><th>Employment type</th><td>{{ job.get_employment_type_display }}</td></tr>
+  <tr><th>Location</th><td>{{ job.location }}</td></tr>
+  <tr>
+    <th>Salary</th>
+    <td>
+      {% if job.salary_min or job.salary_max %}
+      PHP {{ job.salary_min|default_if_none:"0"|floatformat:0 }} to {{ job.salary_max|default_if_none:"open"|floatformat:0 }}
+      {% else %}Not stated{% endif %}
+    </td>
+  </tr>
+  <tr><th>Vacancies</th><td>{{ job.vacancies }}</td></tr>
+  <tr><th>Required experience</th><td>{{ job.required_experience|default:"Not stated" }}</td></tr>
+  <tr><th>Education</th><td>{{ job.education_requirement|default:"Not stated" }}</td></tr>
+  <tr><th>Application deadline</th><td>{{ job.application_deadline }}</td></tr>
+  <tr><th>Posted</th><td>{{ job.created_at|date:"F j, Y" }}</td></tr>
+  <tr><th>Applicants</th><td>{{ applicant_total }}</td></tr>
+</table>
+
+<h3>Description</h3>
+<p>{{ job.description|linebreaksbr }}</p>
+
+<h3>Requirements</h3>
+{% for r in requirements %}
+<ul>
+  {% if r.education_qualification %}<li>Education: {{ r.education_qualification }}</li>{% endif %}
+  {% if r.skills %}<li>Skills: {{ r.skills|linebreaksbr }}</li>{% endif %}
+  {% if r.work_experience %}<li>Experience: {{ r.work_experience }}</li>{% endif %}
+  {% if r.certifications %}<li>Certifications: {{ r.certifications }}</li>{% endif %}
+  {% if r.other_qualifications %}<li>Other: {{ r.other_qualifications|linebreaksbr }}</li>{% endif %}
+</ul>
+{% empty %}
+<p>No requirements added yet.</p>
+{% endfor %}
+{% endblock %}

@@ -114,6 +114,7 @@
       <a href="{% url 'employer_list' %}" {% if request.path == '/' or '/employers' in request.path %}class="current"{% endif %}>Employers</a>
       <a href="{% url 'category_list' %}" {% if '/categories' in request.path %}class="current"{% endif %}>Job categories</a>
       <a href="{% url 'jobpost_list' %}" {% if '/jobs' in request.path %}class="current"{% endif %}>Job posts</a>
+      <a href="{% url 'job_search' %}" {% if '/browse' in request.path %}class="current"{% endif %}>Browse jobs</a>
       <a href="/admin/">Admin</a>
     </nav>
   </aside>

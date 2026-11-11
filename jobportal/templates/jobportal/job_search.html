@@ -1,0 +1,49 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Browse jobs{% endblock %}
+{% block content %}
+<h2>Browse jobs</h2>
+
+<form method="get" class="bar">
+  <input type="text" name="q" value="{{ query }}" placeholder="Title, keyword, or company">
+  <select name="category">
+    <option value="">All categories</option>
+    {% for c in categories %}
+    <option value="{{ c.pk }}" {% if category == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+    {% endfor %}
+  </select>
+  <select name="employment_type">
+    <option value="">All types</option>
+    {% for value, label in type_choices %}
+    <option value="{{ value }}" {% if employment_type == value %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <input type="text" name="location" value="{{ location }}" placeholder="Location">
+  <input type="number" name="min_salary" value="{{ min_salary }}" min="0" placeholder="Minimum salary">
+  <button class="btn" type="submit">Search</button>
+  <a class="btn gray" href="{% url 'job_search' %}">Reset</a>
+</form>
+
+<table>
+  <tr>
+    <th>Title</th><th>Employer</th><th>Category</th><th>Location</th>
+    <th>Type</th><th>Salary</th><th>Deadline</th>
+  </tr>
+  {% for j in jobs %}
+  <tr>
+    <td><a href="{% url 'jobpost_detail' j.pk %}">{{ j.title }}</a></td>
+    <td>{{ j.employer.company_name }}</td>
+    <td>{{ j.category.name|default:"None" }}</td>
+    <td>{{ j.location }}</td>
+    <td>{{ j.get_employment_type_display }}</td>
+    <td>
+      {% if j.salary_min or j.salary_max %}
+      PHP {{ j.salary_min|default_if_none:"0"|floatformat:0 }} to {{ j.salary_max|default_if_none:"open"|floatformat:0 }}
+      {% else %}Not stated{% endif %}
+    </td>
+    <td>{{ j.application_deadline }}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="7">No open jobs match your search.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

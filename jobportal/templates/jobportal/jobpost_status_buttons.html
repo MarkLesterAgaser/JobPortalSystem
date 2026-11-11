@@ -1,0 +1,18 @@
+{% if j.status == 'draft' %}
+<form method="post" action="{% url 'jobpost_publish' j.pk %}" class="inline">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.path }}">
+  <button type="submit" class="link-btn">Publish</button>
+</form>
+{% elif j.status == 'published' %}
+<form method="post" action="{% url 'jobpost_close' j.pk %}" class="inline">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.path }}">
+  <button type="submit" class="link-btn">Close</button>
+</form>
+<form method="post" action="{% url 'jobpost_fill' j.pk %}" class="inline">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.path }}">
+  <button type="submit" class="link-btn">Mark filled</button>
+</form>
+{% endif %}
