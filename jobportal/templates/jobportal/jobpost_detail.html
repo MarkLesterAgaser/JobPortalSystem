@@ -12,6 +12,9 @@
   <a class="btn gray" href="{% url 'jobpost_list' %}">Back to job posts</a>
   <a class="btn" href="{% url 'jobpost_edit' job.pk %}">Edit</a>
   <a class="btn" href="{% url 'jobpost_requirements' job.pk %}">Requirements</a>
+  {% if job.status == 'published' %}
+  <a class="btn" href="{% url 'job_apply' job.pk %}">Apply</a>
+  {% endif %}
   {% include 'jobportal/jobpost_status_buttons.html' with j=job %}
 </p>
 

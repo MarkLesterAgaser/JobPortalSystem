@@ -1,0 +1,33 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Resume{% endblock %}
+{% block content %}
+<h2>Resume for {{ applicant.first_name }} {{ applicant.last_name }}</h2>
+
+{% if profile.resume %}
+<p>Current resume <a href="{{ profile.resume.url }}" target="_blank">{{ profile.resume.name|cut:"resumes/" }}</a></p>
+{% else %}
+<p>No resume uploaded yet.</p>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  {% for field in form %}
+  <p>
+    {{ field.label_tag }}<br>
+    {{ field }}<br>
+    <small>{{ field.help_text }}</small>
+    {{ field.errors }}
+  </p>
+  {% endfor %}
+  <button class="btn" type="submit">{% if profile.resume %}Replace resume{% else %}Upload resume{% endif %}</button>
+  <a class="btn gray" href="{% url 'applicant_profile' applicant.pk %}">Cancel</a>
+</form>
+
+{% if profile.resume %}
+<form method="post" action="{% url 'applicant_resume_delete' applicant.pk %}" style="margin-top:16px;" onsubmit="return confirm('Delete this resume?');">
+  {% csrf_token %}
+  <button class="btn gray" type="submit">Delete resume</button>
+</form>
+{% endif %}
+{% endblock %}

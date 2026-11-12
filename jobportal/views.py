@@ -9,12 +9,12 @@ from django.views.decorators.http import require_POST
 
 from .forms import (
     ApplicantEducationForm, ApplicantForm, ApplicantProfileInfoForm,
-    ApplicantSkillsExperienceForm, EmployerForm, JobCategoryForm,
-    JobPostForm, JobRequirementForm,
+    ApplicantSkillsExperienceForm, ApplicationForm, EmployerForm,
+    JobCategoryForm, JobPostForm, JobRequirementForm, ResumeUploadForm,
 )
 from .models import (
-    Applicant, ApplicantProfile, Application, Employer, Hiring,
-    JobCategory, JobPost, JobRequirement,
+    Applicant, ApplicantProfile, Application, ApplicationDocument, Employer,
+    Hiring, JobCategory, JobPost, JobRequirement, Notification,
 )
 
 
@@ -509,3 +509,80 @@ def jobpost_detail(request, pk):
         'requirements': job.requirements.all(),
         'applicant_total': job.applications.count(),
     })
+
+
+def next_application_number():
+    last = Application.objects.order_by('-id').first()
+    number_id = last.id + 1 if last else 1
+    number = f'APL-{number_id:04d}'
+    while Application.objects.filter(application_number=number).exists():
+        number_id += 1
+        number = f'APL-{number_id:04d}'
+    return number
+
+
+def job_apply(request, pk):
+    job = get_object_or_404(JobPost.objects.select_related('employer'), pk=pk)
+    if request.method == 'POST':
+        form = ApplicationForm(request.POST, request.FILES, job=job)
+        if form.is_valid():
+            application = form.save(commit=False)
+            application.job_post = job
+            application.application_number = next_application_number()
+            application.save()
+            document = request.FILES.get('document')
+            if document:
+                ApplicationDocument.objects.create(application=application, document=document)
+            Notification.objects.create(
+                applicant=application.applicant,
+                message=f'Your application {application.application_number} for {job.title} was received.'[:255],
+            )
+            return redirect('application_confirmation', pk=application.pk)
+    else:
+        form = ApplicationForm(job=job)
+    return render(request, 'jobportal/job_application.html', {
+        'job': job,
+        'form': form,
+    })
+
+
+def application_confirmation(request, pk):
+    application = get_object_or_404(
+        Application.objects.select_related('applicant', 'job_post__employer'), pk=pk
+    )
+    return render(request, 'jobportal/application_confirmation.html', {
+        'application': application,
+        'documents': application.documents.all(),
+    })
+
+
+def applicant_resume(request, pk):
+    applicant = get_object_or_404(Applicant, pk=pk)
+    profile = get_profile(applicant)
+    if request.method == 'POST':
+        form = ResumeUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            old_name = profile.resume.name if profile.resume else ''
+            profile.resume = form.cleaned_data['resume']
+            profile.save()
+            if old_name and old_name != profile.resume.name:
+                profile.resume.storage.delete(old_name)
+            messages.success(request, 'Resume was saved.')
+            return redirect('applicant_profile', pk=applicant.pk)
+    else:
+        form = ResumeUploadForm()
+    return render(request, 'jobportal/applicant_resume.html', {
+        'form': form, 'applicant': applicant, 'profile': profile,
+    })
+
+
+@require_POST
+def applicant_resume_delete(request, pk):
+    applicant = get_object_or_404(Applicant, pk=pk)
+    profile = get_profile(applicant)
+    if profile.resume:
+        profile.resume.delete(save=True)
+        messages.success(request, 'Resume was deleted.')
+    else:
+        messages.error(request, 'There is no resume to delete.')
+    return redirect('applicant_profile', pk=applicant.pk)

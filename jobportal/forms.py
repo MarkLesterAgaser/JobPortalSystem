@@ -1,8 +1,9 @@
+import os
 from datetime import date
 from django import forms
 from django.db.models import Q
 from .models import (
-    Applicant, ApplicantProfile, Employer, JobCategory, JobPost, JobRequirement,
+    Applicant, ApplicantProfile, Application, Employer, JobCategory, JobPost, JobRequirement,
 )
 
 
@@ -200,3 +201,76 @@ class ApplicantSkillsExperienceForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['skills'].required = True
+
+
+ALLOWED_UPLOADS = ('.pdf', '.doc', '.docx')
+MAX_UPLOAD_SIZE = 5 * 1024 * 1024
+
+
+def validate_upload(upload):
+    extension = os.path.splitext(upload.name)[1].lower()
+    if extension not in ALLOWED_UPLOADS:
+        raise forms.ValidationError('Upload a PDF, DOC, or DOCX file.')
+    if upload.size > MAX_UPLOAD_SIZE:
+        raise forms.ValidationError('The file must be 5 MB or smaller.')
+    return upload
+
+
+class ResumeUploadForm(forms.Form):
+    resume = forms.FileField(
+        label='Resume file',
+        help_text='PDF, DOC, or DOCX. Maximum 5 MB.',
+        widget=forms.FileInput(attrs={'accept': '.pdf,.doc,.docx'}),
+    )
+
+    def clean_resume(self):
+        return validate_upload(self.cleaned_data['resume'])
+
+
+class ApplicationForm(forms.ModelForm):
+    document = forms.FileField(
+        required=False,
+        label='Supporting document',
+        help_text='Optional. PDF, DOC, or DOCX. Maximum 5 MB.',
+        widget=forms.FileInput(attrs={'accept': '.pdf,.doc,.docx'}),
+    )
+
+    class Meta:
+        model = Application
+        fields = ['applicant', 'cover_letter']
+        labels = {'cover_letter': 'Cover letter'}
+        widgets = {'cover_letter': forms.Textarea(attrs={'rows': 6})}
+
+    def __init__(self, *args, **kwargs):
+        self.job = kwargs.pop('job')
+        super().__init__(*args, **kwargs)
+        self.fields['applicant'].queryset = Applicant.objects.order_by('last_name', 'first_name')
+        self.fields['applicant'].empty_label = 'Select an applicant'
+        self.fields['applicant'].label_from_instance = (
+            lambda a: f'{a.last_name}, {a.first_name} ({a.applicant_number})'
+        )
+
+    def clean_document(self):
+        document = self.cleaned_data.get('document')
+        if document:
+            validate_upload(document)
+        return document
+
+    def clean(self):
+        cleaned = super().clean()
+        job = self.job
+        applicant = cleaned.get('applicant')
+        if job.status != 'published':
+            raise forms.ValidationError('This job post is not open for applications.')
+        if job.application_deadline < date.today():
+            raise forms.ValidationError('The application deadline has passed.')
+        if applicant:
+            if applicant.status != 'active':
+                self.add_error('applicant', 'This applicant is inactive.')
+            elif Application.objects.filter(applicant=applicant, job_post=job).exists():
+                self.add_error('applicant', 'This applicant already applied to this job.')
+            else:
+                profile = ApplicantProfile.objects.filter(applicant=applicant).first()
+                if not profile or not profile.resume:
+                    self.add_error('applicant', 'Upload a resume on the applicant profile first.')
+        return cleaned

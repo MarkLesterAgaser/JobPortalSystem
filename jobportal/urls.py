@@ -24,6 +24,8 @@ urlpatterns = [
     path('jobs/<int:pk>/close/', views.jobpost_set_status, {'action': 'close'}, name='jobpost_close'),
     path('jobs/<int:pk>/fill/', views.jobpost_set_status, {'action': 'fill'}, name='jobpost_fill'),
     path('browse/', views.job_search, name='job_search'),
+    path('jobs/<int:pk>/apply/', views.job_apply, name='job_apply'),
+    path('applications/<int:pk>/confirmation/', views.application_confirmation, name='application_confirmation'),
     path('jobs/<int:pk>/', views.jobpost_detail, name='jobpost_detail'),
     path('applicants/', views.applicant_list, name='applicant_list'),
     path('applicants/add/', views.applicant_add, name='applicant_add'),
@@ -33,4 +35,6 @@ urlpatterns = [
     path('applicants/<int:pk>/profile/edit/', views.applicant_profile_edit, name='applicant_profile_edit'),
     path('applicants/<int:pk>/education/', views.applicant_education, name='applicant_education'),
     path('applicants/<int:pk>/skills/', views.applicant_skills, name='applicant_skills'),
+    path('applicants/<int:pk>/resume/', views.applicant_resume, name='applicant_resume'),
+    path('applicants/<int:pk>/resume/delete/', views.applicant_resume_delete, name='applicant_resume_delete'),
 ]

@@ -47,6 +47,12 @@
 <h3>Training and seminars</h3>
 <p>{{ profile.training|default:"Not added yet"|linebreaksbr }}</p>
 
+<h3>Resume</h3>
+<p>
+  {% if profile.resume %}<a href="{{ profile.resume.url }}" target="_blank">View resume</a>{% else %}Not uploaded yet{% endif %}
+  <a class="btn" href="{% url 'applicant_resume' applicant.pk %}">{% if profile.resume %}Replace resume{% else %}Upload resume{% endif %}</a>
+</p>
+
 <h3>References</h3>
 <p>{{ profile.references|default:"Not added yet"|linebreaksbr }}</p>
 {% endblock %}

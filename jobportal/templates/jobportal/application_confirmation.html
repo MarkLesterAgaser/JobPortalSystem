@@ -1,0 +1,33 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Application received{% endblock %}
+{% block content %}
+<h2>Application received</h2>
+<p>Keep your application number. You need it to follow up with the employer.</p>
+
+<table>
+  <tr><th>Application number</th><td>{{ application.application_number }}</td></tr>
+  <tr><th>Applicant</th><td>{{ application.applicant.first_name }} {{ application.applicant.last_name }}</td></tr>
+  <tr><th>Job</th><td>{{ application.job_post.title }}</td></tr>
+  <tr><th>Employer</th><td>{{ application.job_post.employer.company_name }}</td></tr>
+  <tr><th>Submitted</th><td>{{ application.application_date|date:"F j, Y g:i A" }}</td></tr>
+  <tr><th>Status</th><td>{{ application.get_status_display }}</td></tr>
+  <tr>
+    <th>Supporting documents</th>
+    <td>
+      {% for d in documents %}
+      <a href="{{ d.document.url }}" target="_blank">{{ d.document.name|cut:"application_documents/" }}</a>{% if not forloop.last %}<br>{% endif %}
+      {% empty %}None{% endfor %}
+    </td>
+  </tr>
+</table>
+
+{% if application.cover_letter %}
+<h3>Cover letter</h3>
+<p>{{ application.cover_letter|linebreaksbr }}</p>
+{% endif %}
+
+<p>
+  <a class="btn" href="{% url 'job_search' %}">Browse more jobs</a>
+  <a class="btn gray" href="{% url 'applicant_profile' application.applicant.pk %}">View applicant profile</a>
+</p>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Apply for {{ job.title }}{% endblock %}
+{% block content %}
+<h2>Apply for {{ job.title }}</h2>
+<p>{{ job.employer.company_name }} · {{ job.location }}</p>
+
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  {% for field in form %}
+    <div class="field">
+      {{ field.label_tag }}
+      {{ field }}
+      {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+      {% if field.errors %}<div class="error">{{ field.errors }}</div>{% endif %}
+    </div>
+  {% endfor %}
+  <button class="btn" type="submit">Submit application</button>
+  <a class="btn gray" href="{% url 'jobpost_detail' job.pk %}">Cancel</a>
+</form>
+{% endblock %}
