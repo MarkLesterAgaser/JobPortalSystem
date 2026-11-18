@@ -11,10 +11,11 @@ from .forms import (
     ApplicantEducationForm, ApplicantForm, ApplicantProfileInfoForm,
     ApplicantSkillsExperienceForm, ApplicationForm, EmployerForm,
     JobCategoryForm, JobPostForm, JobRequirementForm, ResumeUploadForm,
+    ScreeningRemarksForm, ScreeningScoreForm,
 )
 from .models import (
     Applicant, ApplicantProfile, Application, ApplicationDocument, Employer,
-    Hiring, JobCategory, JobPost, JobRequirement, Notification,
+    Hiring, JobCategory, JobPost, JobRequirement, Notification, Screening,
 )
 
 
@@ -586,3 +587,203 @@ def applicant_resume_delete(request, pk):
     else:
         messages.error(request, 'There is no resume to delete.')
     return redirect('applicant_profile', pk=applicant.pk)
+
+
+def applicant_applications(request, pk):
+    applicant = get_object_or_404(Applicant, pk=pk)
+    applications = applicant.applications.select_related(
+        'job_post__employer'
+    ).order_by('-application_date')
+
+    status = request.GET.get('status', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+
+    if status in dict(Application.STATUS_CHOICES):
+        applications = applications.filter(status=status)
+    else:
+        status = ''
+
+    try:
+        start = parse_date(date_from) if date_from else None
+        end = parse_date(date_to) if date_to else None
+    except ValueError:
+        start = end = None
+    if start:
+        applications = applications.filter(application_date__date__gte=start)
+    if end:
+        applications = applications.filter(application_date__date__lte=end)
+
+    return render(request, 'jobportal/applicant_applications.html', {
+        'applicant': applicant,
+        'applications': applications,
+        'status': status,
+        'date_from': date_from,
+        'date_to': date_to,
+        'status_choices': Application.STATUS_CHOICES,
+    })
+
+
+def application_list(request):
+    applications = Application.objects.select_related(
+        'applicant', 'job_post__employer', 'screening'
+    ).order_by('-application_date')
+    query = request.GET.get('q', '').strip()
+    status = request.GET.get('status', '')
+    job = request.GET.get('job', '')
+
+    if query:
+        applications = applications.filter(
+            Q(application_number__icontains=query)
+            | Q(applicant__first_name__icontains=query)
+            | Q(applicant__last_name__icontains=query)
+            | Q(job_post__title__icontains=query)
+        )
+    if status in dict(Application.STATUS_CHOICES):
+        applications = applications.filter(status=status)
+    else:
+        status = ''
+    if job.isdigit():
+        applications = applications.filter(job_post_id=job)
+    else:
+        job = ''
+
+    return render(request, 'jobportal/application_list.html', {
+        'applications': applications,
+        'query': query,
+        'status': status,
+        'job': job,
+        'status_choices': Application.STATUS_CHOICES,
+        'jobs': JobPost.objects.order_by('title'),
+    })
+
+
+def application_detail(request, pk):
+    application = get_object_or_404(
+        Application.objects.select_related('applicant', 'job_post__employer'), pk=pk
+    )
+    return render(request, 'jobportal/application_detail.html', {
+        'application': application,
+        'applicant': application.applicant,
+        'profile': get_profile(application.applicant),
+        'documents': application.documents.all(),
+        'screening': Screening.objects.filter(application=application).first(),
+    })
+
+
+@require_POST
+def application_review_start(request, pk):
+    application = get_object_or_404(Application, pk=pk)
+    if application.status != 'submitted':
+        messages.error(request, 'Only a submitted application can start review.')
+    else:
+        application.status = 'under_review'
+        application.save()
+        messages.success(request, f'{application.application_number} is now under review.')
+    return redirect('application_detail', pk=application.pk)
+
+
+def get_screening(application):
+    screening, created = Screening.objects.get_or_create(
+        application=application, defaults={'status': 'under_review'}
+    )
+    return screening
+
+
+def get_open_screening(request, application):
+    if application.status != 'under_review':
+        messages.error(request, 'Screening is only open while an application is under review.')
+        return None
+    return get_screening(application)
+
+
+def screening_review(request, pk):
+    application = get_object_or_404(
+        Application.objects.select_related('applicant', 'job_post__employer'), pk=pk
+    )
+    screening = get_open_screening(request, application)
+    if screening is None:
+        return redirect('application_detail', pk=application.pk)
+    if request.method == 'POST':
+        form = ScreeningRemarksForm(request.POST, instance=screening)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Screening remarks were saved.')
+            return redirect('application_detail', pk=application.pk)
+    else:
+        form = ScreeningRemarksForm(instance=screening)
+    return render(request, 'jobportal/screening_review.html', {
+        'application': application,
+        'job': application.job_post,
+        'requirements': application.job_post.requirements.all(),
+        'applicant': application.applicant,
+        'profile': get_profile(application.applicant),
+        'form': form,
+    })
+
+
+PASSING_SCORE = 60
+
+
+def screening_score(request, pk):
+    application = get_object_or_404(
+        Application.objects.select_related('applicant', 'job_post'), pk=pk
+    )
+    screening = get_open_screening(request, application)
+    if screening is None:
+        return redirect('application_detail', pk=application.pk)
+    if request.method == 'POST':
+        form = ScreeningScoreForm(request.POST, instance=screening)
+        if form.is_valid():
+            screening = form.save()
+            messages.success(request, f'Scores were saved. The total is {screening.total_score} out of 100.')
+            return redirect('application_detail', pk=application.pk)
+    else:
+        form = ScreeningScoreForm(instance=screening)
+    return render(request, 'jobportal/screening_score.html', {
+        'form': form,
+        'application': application,
+        'passing_score': PASSING_SCORE,
+    })
+
+
+DECISIONS = {
+    'shortlist': 'shortlisted',
+    'reject': 'rejected',
+}
+
+
+@require_POST
+def application_decide(request, pk, decision):
+    application = get_object_or_404(Application, pk=pk)
+    new_status = DECISIONS[decision]
+    screening = Screening.objects.filter(application=application).first()
+    if application.status != 'under_review':
+        messages.error(request, 'Only an application under review can be shortlisted or rejected.')
+    elif screening is None or screening.total_score <= 0:
+        messages.error(request, 'Enter the screening scores first.')
+    elif decision == 'shortlist' and screening.total_score < PASSING_SCORE:
+        messages.error(request, f'The total score is below the passing score of {PASSING_SCORE}.')
+    else:
+        application.status = new_status
+        application.save()
+        screening.status = new_status
+        screening.save()
+        messages.success(request, f'{application.application_number} is now {application.get_status_display().lower()}.')
+    return redirect('application_detail', pk=application.pk)
+
+
+def shortlist_list(request):
+    applications = Application.objects.filter(status='shortlisted').select_related(
+        'applicant', 'job_post__employer', 'screening'
+    ).order_by('-screening__total_score', 'application_date')
+    job = request.GET.get('job', '')
+    if job.isdigit():
+        applications = applications.filter(job_post_id=job)
+    else:
+        job = ''
+    return render(request, 'jobportal/shortlist_list.html', {
+        'applications': applications,
+        'job': job,
+        'jobs': JobPost.objects.filter(applications__status='shortlisted').distinct().order_by('title'),
+    })

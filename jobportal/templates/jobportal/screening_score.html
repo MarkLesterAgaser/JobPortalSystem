@@ -1,0 +1,22 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Screening score{% endblock %}
+{% block content %}
+<h2>Screening score for {{ application.application_number }}</h2>
+<p>{{ application.applicant.first_name }} {{ application.applicant.last_name }} for {{ application.job_post.title }}.</p>
+<p>The total is out of 100. The passing score is {{ passing_score }}.</p>
+
+<form method="post">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  {% for field in form %}
+  <p>
+    {{ field.label_tag }}<br>
+    {{ field }}
+    {% if field.help_text %}<br><small>{{ field.help_text }}</small>{% endif %}
+    {{ field.errors }}
+  </p>
+  {% endfor %}
+  <button class="btn" type="submit">Save scores</button>
+  <a class="btn gray" href="{% url 'application_detail' application.pk %}">Cancel</a>
+</form>
+{% endblock %}

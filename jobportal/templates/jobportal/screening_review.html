@@ -1,0 +1,51 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Screening{% endblock %}
+{% block content %}
+<h2>Screening for {{ application.application_number }}</h2>
+<p>{{ applicant.first_name }} {{ applicant.last_name }} applied for {{ job.title }} at {{ job.employer.company_name }}.</p>
+
+<h3>What the job asks for</h3>
+<table>
+  <tr><th>Required experience</th><td>{{ job.required_experience|default:"Not stated" }}</td></tr>
+  <tr><th>Education requirement</th><td>{{ job.education_requirement|default:"Not stated" }}</td></tr>
+</table>
+{% for r in requirements %}
+<ul>
+  {% if r.education_qualification %}<li>Education: {{ r.education_qualification }}</li>{% endif %}
+  {% if r.skills %}<li>Skills: {{ r.skills|linebreaksbr }}</li>{% endif %}
+  {% if r.work_experience %}<li>Experience: {{ r.work_experience }}</li>{% endif %}
+  {% if r.certifications %}<li>Certifications: {{ r.certifications }}</li>{% endif %}
+  {% if r.other_qualifications %}<li>Other: {{ r.other_qualifications|linebreaksbr }}</li>{% endif %}
+</ul>
+{% empty %}
+<p>No requirements added to this job.</p>
+{% endfor %}
+
+<h3>What the applicant has</h3>
+<table>
+  <tr><th>Education</th><td>{{ profile.education|default:"Not added"|linebreaksbr }}</td></tr>
+  <tr><th>Skills</th><td>{{ profile.skills|default:"Not added"|linebreaksbr }}</td></tr>
+  <tr><th>Work experience</th><td>{{ profile.work_experience|default:"Not added"|linebreaksbr }}</td></tr>
+  <tr><th>Certifications</th><td>{{ profile.certifications|default:"Not added"|linebreaksbr }}</td></tr>
+  <tr>
+    <th>Resume</th>
+    <td>{% if profile.resume %}<a href="{{ profile.resume.url }}" target="_blank">View resume</a>{% else %}No resume{% endif %}</td>
+  </tr>
+</table>
+
+<h3>Your remarks</h3>
+<form method="post">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  {% for field in form %}
+  <p>
+    {{ field.label_tag }}<br>
+    {{ field }}
+    {% if field.help_text %}<br><small>{{ field.help_text }}</small>{% endif %}
+    {{ field.errors }}
+  </p>
+  {% endfor %}
+  <button class="btn" type="submit">Save remarks</button>
+  <a class="btn gray" href="{% url 'application_detail' application.pk %}">Cancel</a>
+</form>
+{% endblock %}

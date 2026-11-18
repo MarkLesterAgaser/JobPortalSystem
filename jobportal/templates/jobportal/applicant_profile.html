@@ -16,6 +16,7 @@
   <a class="btn gray" href="{% url 'applicant_list' %}">Back to applicants</a>
   <a class="btn" href="{% url 'applicant_edit' applicant.pk %}">Edit personal info</a>
   <a class="btn" href="{% url 'applicant_profile_edit' applicant.pk %}">Edit training and references</a>
+  <a class="btn" href="{% url 'applicant_applications' applicant.pk %}">Application history</a>
 </p>
 
 <table>

@@ -1,0 +1,41 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Application history{% endblock %}
+{% block content %}
+<h2>Application history for {{ applicant.first_name }} {{ applicant.last_name }}</h2>
+<p>{{ applicant.applicant_number }}</p>
+
+<form method="get" class="bar">
+  <select name="status">
+    <option value="">All statuses</option>
+    {% for value, label in status_choices %}
+    <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <label>From <input type="date" name="date_from" value="{{ date_from }}"></label>
+  <label>To <input type="date" name="date_to" value="{{ date_to }}"></label>
+  <button class="btn" type="submit">Filter</button>
+  <a class="btn gray" href="{% url 'applicant_applications' applicant.pk %}">Reset</a>
+  <a class="btn gray" href="{% url 'applicant_profile' applicant.pk %}" style="margin-left:auto;">Back to profile</a>
+</form>
+
+<table>
+  <tr>
+    <th>Number</th><th>Job</th><th>Employer</th><th>Date applied</th><th>Status</th>
+  </tr>
+  {% for a in applications %}
+  <tr>
+    <td><a href="{% url 'application_confirmation' a.pk %}">{{ a.application_number }}</a></td>
+    <td>{{ a.job_post.title }}</td>
+    <td>{{ a.job_post.employer.company_name }}</td>
+    <td>{{ a.application_date|date:"F j, Y" }}</td>
+    <td>
+      <span class="badge {% if a.status == 'shortlisted' or a.status == 'interview' or a.status == 'hired' %}active{% else %}inactive{% endif %}">
+        {{ a.get_status_display }}
+      </span>
+    </td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="5">No applications found.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

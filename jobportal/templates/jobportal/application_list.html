@@ -1,0 +1,49 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Applications{% endblock %}
+{% block content %}
+<h2>Applications</h2>
+
+<form method="get" class="bar">
+  <input type="text" name="q" value="{{ query }}" placeholder="Search by number, applicant, or job">
+  <select name="job">
+    <option value="">All jobs</option>
+    {% for j in jobs %}
+    <option value="{{ j.pk }}" {% if job == j.pk|stringformat:"s" %}selected{% endif %}>{{ j.title }}</option>
+    {% endfor %}
+  </select>
+  <select name="status">
+    <option value="">All statuses</option>
+    {% for value, label in status_choices %}
+    <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn" type="submit">Search</button>
+  <a class="btn gray" href="{% url 'application_list' %}">Reset</a>
+  <a class="btn" href="{% url 'shortlist_list' %}" style="margin-left:auto;">View shortlist</a>
+</form>
+
+<table>
+  <tr>
+    <th>Number</th><th>Applicant</th><th>Job</th><th>Employer</th>
+    <th>Applied</th><th>Score</th><th>Status</th><th>Actions</th>
+  </tr>
+  {% for a in applications %}
+  <tr>
+    <td>{{ a.application_number }}</td>
+    <td>{{ a.applicant.first_name }} {{ a.applicant.last_name }}</td>
+    <td>{{ a.job_post.title }}</td>
+    <td>{{ a.job_post.employer.company_name }}</td>
+    <td>{{ a.application_date|date:"M j, Y" }}</td>
+    <td>{% if a.screening %}{{ a.screening.total_score }}{% else %}Not scored{% endif %}</td>
+    <td>
+      <span class="badge {% if a.status == 'shortlisted' or a.status == 'interview' or a.status == 'hired' %}active{% else %}inactive{% endif %}">
+        {{ a.get_status_display }}
+      </span>
+    </td>
+    <td><a href="{% url 'application_detail' a.pk %}">View</a></td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="8">No applications found.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

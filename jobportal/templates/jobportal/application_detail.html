@@ -1,0 +1,75 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}{{ application.application_number }}{% endblock %}
+{% block content %}
+<h2>Application {{ application.application_number }}</h2>
+
+<p>
+  <a class="btn gray" href="{% url 'application_list' %}">Back to applications</a>
+  {% if application.status == 'submitted' %}
+  <form method="post" action="{% url 'application_review_start' application.pk %}" class="inline">
+    {% csrf_token %}
+    <button type="submit" class="btn">Start review</button>
+  </form>
+  {% endif %}
+  {% if application.status == 'under_review' %}<a class="btn" href="{% url 'screening_review' application.pk %}">Screen application</a>{% endif %}
+  {% if application.status == 'under_review' %}<a class="btn" href="{% url 'screening_score' application.pk %}">Enter scores</a>{% endif %}
+  {% if application.status == 'under_review' and screening %}
+  <form method="post" action="{% url 'application_shortlist' application.pk %}" class="inline">
+    {% csrf_token %}
+    <button type="submit" class="btn">Shortlist</button>
+  </form>
+  <form method="post" action="{% url 'application_reject' application.pk %}" class="inline" onsubmit="return confirm('Reject this application?');">
+    {% csrf_token %}
+    <button type="submit" class="btn gray">Reject</button>
+  </form>
+  {% endif %}
+</p>
+
+<table>
+  <tr><th>Applicant</th><td><a href="{% url 'applicant_profile' applicant.pk %}">{{ applicant.first_name }} {{ applicant.last_name }}</a> ({{ applicant.applicant_number }})</td></tr>
+  <tr><th>Contact number</th><td>{{ applicant.contact_number }}</td></tr>
+  <tr><th>Email</th><td>{{ applicant.email }}</td></tr>
+  <tr><th>Job</th><td><a href="{% url 'jobpost_detail' application.job_post.pk %}">{{ application.job_post.title }}</a></td></tr>
+  <tr><th>Employer</th><td>{{ application.job_post.employer.company_name }}</td></tr>
+  <tr><th>Applied</th><td>{{ application.application_date|date:"F j, Y g:i A" }}</td></tr>
+  <tr>
+    <th>Status</th>
+    <td>
+      <span class="badge {% if application.status == 'shortlisted' or application.status == 'interview' or application.status == 'hired' %}active{% else %}inactive{% endif %}">
+        {{ application.get_status_display }}
+      </span>
+    </td>
+  </tr>
+  <tr>
+    <th>Resume</th>
+    <td>{% if profile.resume %}<a href="{{ profile.resume.url }}" target="_blank">View resume</a>{% else %}No resume{% endif %}</td>
+  </tr>
+  <tr>
+    <th>Supporting documents</th>
+    <td>
+      {% for d in documents %}
+      <a href="{{ d.document.url }}" target="_blank">{{ d.document.name|cut:"application_documents/" }}</a>{% if not forloop.last %}<br>{% endif %}
+      {% empty %}None{% endfor %}
+    </td>
+  </tr>
+</table>
+
+<h3>Cover letter</h3>
+<p>{{ application.cover_letter|default:"None"|linebreaksbr }}</p>
+
+<h3>Screening</h3>
+{% if screening %}
+<table>
+  <tr><th>Screening status</th><td>{{ screening.get_status_display }}</td></tr>
+  <tr><th>Remarks</th><td>{{ screening.remarks|default:"None yet"|linebreaksbr }}</td></tr>
+  <tr><th>Education score</th><td>{{ screening.education_score }} of 20</td></tr>
+  <tr><th>Experience score</th><td>{{ screening.experience_score }} of 25</td></tr>
+  <tr><th>Skills score</th><td>{{ screening.skills_score }} of 30</td></tr>
+  <tr><th>Certifications score</th><td>{{ screening.certifications_score }} of 10</td></tr>
+  <tr><th>Resume score</th><td>{{ screening.resume_score }} of 15</td></tr>
+  <tr><th>Total score</th><td>{{ screening.total_score }} of 100</td></tr>
+</table>
+{% else %}
+<p>Not screened yet.</p>
+{% endif %}
+{% endblock %}

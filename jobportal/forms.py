@@ -3,7 +3,8 @@ from datetime import date
 from django import forms
 from django.db.models import Q
 from .models import (
-    Applicant, ApplicantProfile, Application, Employer, JobCategory, JobPost, JobRequirement,
+    Applicant, ApplicantProfile, Application, Employer, JobCategory, JobPost,
+    JobRequirement, Screening,
 )
 
 
@@ -274,3 +275,59 @@ class ApplicationForm(forms.ModelForm):
                 if not profile or not profile.resume:
                     self.add_error('applicant', 'Upload a resume on the applicant profile first.')
         return cleaned
+
+
+class ScreeningRemarksForm(forms.ModelForm):
+    class Meta:
+        model = Screening
+        fields = ['remarks']
+        labels = {'remarks': 'Screening remarks'}
+        help_texts = {'remarks': 'Write how the applicant matches the job requirements.'}
+        widgets = {'remarks': forms.Textarea(attrs={'rows': 5})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['remarks'].required = True
+
+
+SCORE_LIMITS = {
+    'education_score': 20,
+    'experience_score': 25,
+    'skills_score': 30,
+    'certifications_score': 10,
+    'resume_score': 15,
+}
+
+
+class ScreeningScoreForm(forms.ModelForm):
+    class Meta:
+        model = Screening
+        fields = list(SCORE_LIMITS)
+        labels = {
+            'education_score': 'Education score',
+            'experience_score': 'Experience score',
+            'skills_score': 'Skills score',
+            'certifications_score': 'Certifications score',
+            'resume_score': 'Resume score',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, limit in SCORE_LIMITS.items():
+            self.fields[name].help_text = f'Enter 0 to {limit}.'
+            self.fields[name].widget.attrs.update({'min': 0, 'max': limit})
+
+    def clean(self):
+        cleaned = super().clean()
+        for name, limit in SCORE_LIMITS.items():
+            value = cleaned.get(name)
+            if value is not None and not 0 <= value <= limit:
+                self.add_error(name, f'Enter a score from 0 to {limit}.')
+        return cleaned
+
+    def save(self, commit=True):
+        screening = super().save(commit=False)
+        screening.total_score = sum(getattr(screening, name) for name in SCORE_LIMITS)
+        if commit:
+            screening.save()
+        return screening

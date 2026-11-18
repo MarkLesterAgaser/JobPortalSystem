@@ -1,0 +1,36 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Shortlist{% endblock %}
+{% block content %}
+<h2>Shortlisted applicants</h2>
+
+<form method="get" class="bar">
+  <select name="job">
+    <option value="">All jobs</option>
+    {% for j in jobs %}
+    <option value="{{ j.pk }}" {% if job == j.pk|stringformat:"s" %}selected{% endif %}>{{ j.title }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn" type="submit">Filter</button>
+  <a class="btn gray" href="{% url 'shortlist_list' %}">Reset</a>
+  <a class="btn gray" href="{% url 'application_list' %}" style="margin-left:auto;">All applications</a>
+</form>
+
+<table>
+  <tr>
+    <th>Rank</th><th>Applicant</th><th>Job</th><th>Application</th>
+    <th>Total score</th><th>Actions</th>
+  </tr>
+  {% for a in applications %}
+  <tr>
+    <td>{{ forloop.counter }}</td>
+    <td>{{ a.applicant.first_name }} {{ a.applicant.last_name }}</td>
+    <td>{{ a.job_post.title }}</td>
+    <td>{{ a.application_number }}</td>
+    <td>{{ a.screening.total_score }}</td>
+    <td><a href="{% url 'application_detail' a.pk %}">View</a></td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="6">No shortlisted applicants yet.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}
