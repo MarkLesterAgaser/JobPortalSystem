@@ -15,6 +15,7 @@
   {% if job.status == 'published' %}
   <a class="btn" href="{% url 'job_apply' job.pk %}">Apply</a>
   {% endif %}
+  <a class="btn" href="{% url 'candidate_selection' job.pk %}">Candidates</a>
   {% include 'jobportal/jobpost_status_buttons.html' with j=job %}
 </p>
 

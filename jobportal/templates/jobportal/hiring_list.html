@@ -1,0 +1,37 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Hiring records{% endblock %}
+{% block content %}
+<h2>Hiring records</h2>
+
+<form method="get" class="bar">
+  <input type="text" name="q" value="{{ query }}" placeholder="Search by applicant, position, or number">
+  <button class="btn" type="submit">Search</button>
+  <a class="btn gray" href="{% url 'hiring_list' %}">Reset</a>
+</form>
+
+<table>
+  <tr>
+    <th>Application</th><th>Applicant</th><th>Position</th><th>Employer</th>
+    <th>Salary</th><th>Hired on</th><th>Start date</th><th>Status</th><th>Actions</th>
+  </tr>
+  {% for h in hirings %}
+  <tr>
+    <td><a href="{% url 'application_detail' h.application.pk %}">{{ h.application.application_number }}</a></td>
+    <td>{{ h.application.applicant.first_name }} {{ h.application.applicant.last_name }}</td>
+    <td>{{ h.position }}</td>
+    <td>{{ h.application.job_post.employer.company_name }}</td>
+    <td>PHP {{ h.salary|floatformat:2 }}</td>
+    <td>{{ h.hiring_date|date:"M j, Y" }}</td>
+    <td>{{ h.start_date|date:"M j, Y" }}</td>
+    <td>
+      <span class="badge {% if h.status == 'hired' %}active{% else %}inactive{% endif %}">
+        {{ h.get_status_display }}
+      </span>
+    </td>
+    <td><a href="{% url 'hiring_edit' h.pk %}">Edit</a></td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="9">No hiring records yet.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

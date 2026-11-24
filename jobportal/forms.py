@@ -4,7 +4,7 @@ from django import forms
 from django.db.models import Q
 from .models import (
     Applicant, ApplicantProfile, Application, Employer, JobCategory, JobPost,
-    JobRequirement, Screening,
+    JobRequirement, Screening, Interview, Evaluation, Hiring,
 )
 
 
@@ -331,3 +331,121 @@ class ScreeningScoreForm(forms.ModelForm):
         if commit:
             screening.save()
         return screening
+
+
+ACTIVE_INTERVIEW = ('scheduled', 'confirmed', 'rescheduled')
+
+class InterviewForm(forms.ModelForm):
+    class Meta:
+        model = Interview
+        fields = ['interviewer', 'interview_date', 'interview_time', 'location', 'remarks']
+        labels = {
+            'interviewer': 'Interviewer name',
+            'interview_date': 'Interview date',
+            'interview_time': 'Interview time',
+            'location': 'Location or meeting link',
+        }
+        widgets = {
+            'interview_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+            'interview_time': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
+            'remarks': forms.Textarea(attrs={'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['location'].required = True
+
+    def clean_interview_date(self):
+        day = self.cleaned_data['interview_date']
+        if 'interview_date' in self.changed_data and day < date.today():
+            raise forms.ValidationError('The interview date cannot be in the past.')
+        return day
+
+    def clean_interview_time(self):
+        at = self.cleaned_data['interview_time']
+        if not 7 <= at.hour <= 19:
+            raise forms.ValidationError('Pick a time between 7 AM and 7:59 PM.')
+        return at
+
+    def clean(self):
+        cleaned = super().clean()
+        interviewer = cleaned.get('interviewer')
+        day = cleaned.get('interview_date')
+        at = cleaned.get('interview_time')
+        if interviewer and day and at:
+            clash = Interview.objects.filter(
+                interviewer__iexact=interviewer,
+                interview_date=day,
+                interview_time=at,
+                status__in=ACTIVE_INTERVIEW,
+            )
+            if self.instance.pk:
+                clash = clash.exclude(pk=self.instance.pk)
+            if clash.exists():
+                raise forms.ValidationError('This interviewer already has an interview at that date and time.')
+        return cleaned
+
+
+EVALUATION_FIELDS = [
+    'communication_score', 'technical_score', 'problem_solving_score',
+    'attitude_score', 'experience_score', 'cultural_fit_score',
+]
+EVALUATION_MAX = 10
+
+class EvaluationForm(forms.ModelForm):
+    class Meta:
+        model = Evaluation
+        fields = EVALUATION_FIELDS + ['overall_notes']
+        labels = {
+            'communication_score': 'Communication',
+            'technical_score': 'Technical skills',
+            'problem_solving_score': 'Problem solving',
+            'attitude_score': 'Attitude',
+            'experience_score': 'Relevant experience',
+            'cultural_fit_score': 'Cultural fit',
+            'overall_notes': 'Overall notes',
+        }
+        help_texts = {'overall_notes': 'Write your overall impression of the applicant.'}
+        widgets = {'overall_notes': forms.Textarea(attrs={'rows': 5})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name in EVALUATION_FIELDS:
+            self.fields[name].help_text = f'Enter 0 to {EVALUATION_MAX}.'
+            self.fields[name].widget.attrs.update({'min': 0, 'max': EVALUATION_MAX})
+        self.fields['overall_notes'].required = True
+
+    def clean(self):
+        cleaned = super().clean()
+        for name in EVALUATION_FIELDS:
+            value = cleaned.get(name)
+            if value is not None and not 0 <= value <= EVALUATION_MAX:
+                self.add_error(name, f'Enter a score from 0 to {EVALUATION_MAX}.')
+        return cleaned
+
+
+class HiringForm(forms.ModelForm):
+    class Meta:
+        model = Hiring
+        fields = ['position', 'salary', 'start_date', 'remarks']
+        labels = {
+            'position': 'Position',
+            'salary': 'Monthly salary',
+            'start_date': 'Start date',
+        }
+        widgets = {
+            'start_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+            'remarks': forms.Textarea(attrs={'rows': 3}),
+        }
+
+    def clean_salary(self):
+        salary = self.cleaned_data['salary']
+        if salary <= 0:
+            raise forms.ValidationError('Salary must be more than 0.')
+        return salary
+
+    def clean_start_date(self):
+        start = self.cleaned_data['start_date']
+        if 'start_date' in self.changed_data and start < date.today():
+            raise forms.ValidationError('The start date cannot be in the past.')
+        return start

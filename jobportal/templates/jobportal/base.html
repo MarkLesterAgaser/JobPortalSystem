@@ -117,6 +117,8 @@
       <a href="{% url 'job_search' %}" {% if '/browse' in request.path %}class="current"{% endif %}>Browse jobs</a>
       <a href="{% url 'applicant_list' %}" {% if '/applicants' in request.path %}class="current"{% endif %}>Applicants</a>
       <a href="{% url 'application_list' %}" {% if '/applications' in request.path %}class="current"{% endif %}>Applications</a>
+      <a href="{% url 'interview_list' %}" {% if '/interviews' in request.path %}class="current"{% endif %}>Interviews</a>
+      <a href="{% url 'hiring_list' %}" {% if '/hiring' in request.path %}class="current"{% endif %}>Hiring</a>
       <a href="/admin/">Admin</a>
     </nav>
   </aside>

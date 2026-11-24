@@ -1,0 +1,68 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Interviews{% endblock %}
+{% block content %}
+<h2>Interviews</h2>
+
+<form method="get" class="bar">
+  <input type="text" name="q" value="{{ query }}" placeholder="Search by applicant, number, or interviewer">
+  <select name="status">
+    <option value="">All statuses</option>
+    {% for value, label in status_choices %}
+    <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <label>From <input type="date" name="date_from" value="{{ date_from }}"></label>
+  <label>To <input type="date" name="date_to" value="{{ date_to }}"></label>
+  <button class="btn" type="submit">Filter</button>
+  <a class="btn gray" href="{% url 'interview_list' %}">Reset</a>
+</form>
+
+<table>
+  <tr>
+    <th>Application</th><th>Applicant</th><th>Job</th><th>Interviewer</th>
+    <th>Date</th><th>Time</th><th>Location</th><th>Status</th><th>Actions</th>
+  </tr>
+  {% for i in interviews %}
+  <tr>
+    <td><a href="{% url 'application_detail' i.application.pk %}">{{ i.application.application_number }}</a></td>
+    <td>{{ i.application.applicant.first_name }} {{ i.application.applicant.last_name }}</td>
+    <td>{{ i.application.job_post.title }}</td>
+    <td>{{ i.interviewer }}</td>
+    <td>{{ i.interview_date|date:"M j, Y" }}</td>
+    <td>{{ i.interview_time|time:"g:i A" }}</td>
+    <td>{{ i.location }}</td>
+    <td>
+      <span class="badge {% if i.status == 'confirmed' or i.status == 'completed' %}active{% else %}inactive{% endif %}">
+        {{ i.get_status_display }}
+      </span>
+    </td>
+    <td>
+      {% if i.status == 'scheduled' or i.status == 'rescheduled' %}
+      <form method="post" action="{% url 'interview_confirm' i.pk %}" class="inline">
+        {% csrf_token %}
+        <button type="submit" class="link-btn">Confirm</button>
+      </form>
+      {% endif %}
+      {% if i.status == 'scheduled' or i.status == 'confirmed' or i.status == 'rescheduled' %}
+      <a href="{% url 'interview_reschedule' i.pk %}">Reschedule</a>
+      <form method="post" action="{% url 'interview_complete' i.pk %}" class="inline">
+        {% csrf_token %}
+        <button type="submit" class="link-btn">Complete</button>
+      </form>
+      <form method="post" action="{% url 'interview_no_show' i.pk %}" class="inline">
+        {% csrf_token %}
+        <button type="submit" class="link-btn">No show</button>
+      </form>
+      <form method="post" action="{% url 'interview_cancel' i.pk %}" class="inline" onsubmit="return confirm('Cancel this interview?');">
+        {% csrf_token %}
+        <button type="submit" class="link-btn">Cancel</button>
+      </form>
+      {% endif %}
+      {% if i.status == 'completed' %}<a href="{% url 'interview_evaluate' i.pk %}">{% if i.evaluation %}Edit evaluation{% else %}Evaluate{% endif %}</a>{% endif %}
+    </td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="9">No interviews found.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

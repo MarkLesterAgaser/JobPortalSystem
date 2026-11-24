@@ -197,6 +197,14 @@ class Evaluation(models.Model):
     cultural_fit_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     overall_notes = models.TextField(blank=True)
 
+    @property
+    def total_score(self):
+        return (
+            self.communication_score + self.technical_score
+            + self.problem_solving_score + self.attitude_score
+            + self.experience_score + self.cultural_fit_score
+        )
+
     def __str__(self):
         return f"Evaluation for {self.interview}"
 

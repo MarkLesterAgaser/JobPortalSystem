@@ -1,0 +1,46 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Candidate selection{% endblock %}
+{% block content %}
+<h2>Candidate selection for {{ job.title }}</h2>
+<p>{{ job.employer.company_name }}. Job status {{ job.get_status_display }}. Vacancies {{ job.vacancies }}. Open slots {{ open_slots }}.</p>
+<p>The combined score counts the screening score as 40 percent and the interview score as 60 percent.</p>
+<p><a class="btn gray" href="{% url 'jobpost_detail' job.pk %}">Back to job post</a></p>
+
+<table>
+  <tr>
+    <th>Rank</th><th>Applicant</th><th>Application</th><th>Screening</th>
+    <th>Interview</th><th>Combined</th><th>Action</th>
+  </tr>
+  {% for c in candidates %}
+  <tr>
+    <td>{% if c.evaluated %}{{ forloop.counter }}{% else %}None{% endif %}</td>
+    <td><a href="{% url 'application_detail' c.application.pk %}">{{ c.application.applicant.first_name }} {{ c.application.applicant.last_name }}</a></td>
+    <td>{{ c.application.application_number }}</td>
+    <td>{{ c.screening_total }} of 100</td>
+    <td>{% if c.evaluated %}{{ c.interview_percent }} percent{% else %}Not evaluated{% endif %}</td>
+    <td>{% if c.evaluated %}{{ c.combined }}{% else %}None{% endif %}</td>
+    <td>
+      {% if c.evaluated and can_select %}
+      <a class="btn" href="{% url 'hiring_add' c.application.pk %}">Select</a>
+      {% elif not c.evaluated %}Needs a completed interview and an evaluation{% endif %}
+    </td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="7">No applicants are in the interview stage yet.</td></tr>
+  {% endfor %}
+</table>
+
+<h3>Hired for this job</h3>
+<table>
+  <tr><th>Applicant</th><th>Position</th><th>Start date</th></tr>
+  {% for h in hires %}
+  <tr>
+    <td>{{ h.application.applicant.first_name }} {{ h.application.applicant.last_name }}</td>
+    <td>{{ h.position }}</td>
+    <td>{{ h.start_date|date:"M j, Y" }}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="3">No one hired yet.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

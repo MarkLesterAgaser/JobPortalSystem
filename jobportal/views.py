@@ -12,10 +12,12 @@ from .forms import (
     ApplicantSkillsExperienceForm, ApplicationForm, EmployerForm,
     JobCategoryForm, JobPostForm, JobRequirementForm, ResumeUploadForm,
     ScreeningRemarksForm, ScreeningScoreForm,
+    InterviewForm, ACTIVE_INTERVIEW, EvaluationForm, HiringForm,
 )
 from .models import (
     Applicant, ApplicantProfile, Application, ApplicationDocument, Employer,
     Hiring, JobCategory, JobPost, JobRequirement, Notification, Screening,
+    Interview, Evaluation,
 )
 
 
@@ -668,6 +670,9 @@ def application_detail(request, pk):
         'profile': get_profile(application.applicant),
         'documents': application.documents.all(),
         'screening': Screening.objects.filter(application=application).first(),
+        'interviews': application.interviews.select_related('evaluation').order_by('-interview_date', '-interview_time'),
+        'can_schedule': application.status in ('shortlisted', 'interview') and not application.interviews.filter(status__in=ACTIVE_INTERVIEW).exists(),
+        'hiring': Hiring.objects.filter(application=application).first(),
     })
 
 
@@ -787,3 +792,310 @@ def shortlist_list(request):
         'job': job,
         'jobs': JobPost.objects.filter(applications__status='shortlisted').distinct().order_by('title'),
     })
+
+
+def notify_applicant(application, text):
+    Notification.objects.create(applicant=application.applicant, message=text[:255])
+
+def interview_schedule(request, pk):
+    application = get_object_or_404(
+        Application.objects.select_related('applicant', 'job_post__employer'), pk=pk
+    )
+    if application.status not in ('shortlisted', 'interview'):
+        messages.error(request, 'Only a shortlisted application can be scheduled for an interview.')
+        return redirect('application_detail', pk=application.pk)
+    if application.interviews.filter(status__in=ACTIVE_INTERVIEW).exists():
+        messages.error(request, 'This application already has an active interview.')
+        return redirect('application_detail', pk=application.pk)
+    if request.method == 'POST':
+        form = InterviewForm(request.POST)
+        if form.is_valid():
+            interview = form.save(commit=False)
+            interview.application = application
+            interview.status = 'scheduled'
+            interview.save()
+            application.status = 'interview'
+            application.save()
+            notify_applicant(
+                application,
+                f'An interview for {application.job_post.title} was scheduled on '
+                f'{interview.interview_date:%B %d, %Y} at {interview.interview_time:%I:%M %p}.',
+            )
+            messages.success(request, 'The interview was scheduled.')
+            return redirect('application_detail', pk=application.pk)
+    else:
+        form = InterviewForm()
+    return render(request, 'jobportal/interview_form.html', {
+        'form': form, 'application': application, 'title': 'Schedule interview',
+    })
+
+
+INTERVIEW_ACTIONS = {
+    'confirm': ('confirmed', ('scheduled', 'rescheduled')),
+    'complete': ('completed', ACTIVE_INTERVIEW),
+    'no_show': ('no_show', ACTIVE_INTERVIEW),
+    'cancel': ('cancelled', ACTIVE_INTERVIEW),
+}
+
+def reset_application_after_interview(application):
+    still_open = application.interviews.filter(status__in=ACTIVE_INTERVIEW + ('completed',)).exists()
+    if application.status == 'interview' and not still_open:
+        application.status = 'shortlisted'
+        application.save()
+
+def interview_list(request):
+    interviews = Interview.objects.select_related(
+        'application__applicant', 'application__job_post', 'evaluation'
+    ).order_by('-interview_date', '-interview_time')
+    query = request.GET.get('q', '').strip()
+    status = request.GET.get('status', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+
+    if query:
+        interviews = interviews.filter(
+            Q(application__application_number__icontains=query)
+            | Q(application__applicant__first_name__icontains=query)
+            | Q(application__applicant__last_name__icontains=query)
+            | Q(interviewer__icontains=query)
+        )
+    if status in dict(Interview.STATUS_CHOICES):
+        interviews = interviews.filter(status=status)
+    else:
+        status = ''
+
+    try:
+        start = parse_date(date_from) if date_from else None
+        end = parse_date(date_to) if date_to else None
+    except ValueError:
+        start = end = None
+    if start:
+        interviews = interviews.filter(interview_date__gte=start)
+    if end:
+        interviews = interviews.filter(interview_date__lte=end)
+
+    return render(request, 'jobportal/interview_list.html', {
+        'interviews': interviews,
+        'query': query,
+        'status': status,
+        'date_from': date_from,
+        'date_to': date_to,
+        'status_choices': Interview.STATUS_CHOICES,
+    })
+
+def interview_reschedule(request, pk):
+    interview = get_object_or_404(
+        Interview.objects.select_related('application__applicant', 'application__job_post'), pk=pk
+    )
+    application = interview.application
+    if interview.status not in ACTIVE_INTERVIEW:
+        messages.error(request, 'Only a scheduled, confirmed, or rescheduled interview can be changed.')
+        return redirect('interview_list')
+    if request.method == 'POST':
+        form = InterviewForm(request.POST, instance=interview)
+        if form.is_valid():
+            interview = form.save(commit=False)
+            interview.status = 'rescheduled'
+            interview.save()
+            notify_applicant(
+                application,
+                f'Your interview for {application.job_post.title} was moved to '
+                f'{interview.interview_date:%B %d, %Y} at {interview.interview_time:%I:%M %p}.',
+            )
+            messages.success(request, 'The interview was rescheduled.')
+            return redirect('interview_list')
+    else:
+        form = InterviewForm(instance=interview)
+    return render(request, 'jobportal/interview_form.html', {
+        'form': form, 'application': application, 'title': 'Reschedule interview',
+    })
+
+@require_POST
+def interview_set_status(request, pk, action):
+    interview = get_object_or_404(
+        Interview.objects.select_related('application__applicant', 'application__job_post'), pk=pk
+    )
+    application = interview.application
+    new_status, allowed = INTERVIEW_ACTIONS[action]
+    if interview.status not in allowed:
+        messages.error(request, f'An interview that is {interview.get_status_display().lower()} cannot use this action.')
+    elif action in ('complete', 'no_show') and interview.interview_date > date.today():
+        messages.error(request, 'This interview is in the future. You cannot mark it yet.')
+    else:
+        interview.status = new_status
+        interview.save()
+        if action == 'confirm':
+            notify_applicant(
+                application,
+                f'Your interview for {application.job_post.title} on {interview.interview_date:%B %d, %Y} was confirmed.',
+            )
+        if action == 'cancel':
+            notify_applicant(
+                application,
+                f'Your interview for {application.job_post.title} was cancelled.',
+            )
+        if action in ('cancel', 'no_show'):
+            reset_application_after_interview(application)
+        messages.success(request, f'The interview is now {interview.get_status_display().lower()}.')
+    return redirect('interview_list')
+
+
+def interview_evaluate(request, pk):
+    interview = get_object_or_404(
+        Interview.objects.select_related('application__applicant', 'application__job_post'), pk=pk
+    )
+    if interview.status != 'completed':
+        messages.error(request, 'Only a completed interview can be evaluated.')
+        return redirect('interview_list')
+    evaluation = Evaluation.objects.filter(interview=interview).first()
+    if request.method == 'POST':
+        form = EvaluationForm(request.POST, instance=evaluation)
+        if form.is_valid():
+            evaluation = form.save(commit=False)
+            evaluation.interview = interview
+            evaluation.save()
+            messages.success(request, f'The evaluation was saved. The total is {evaluation.total_score} out of 60.')
+            return redirect('interview_list')
+    else:
+        form = EvaluationForm(instance=evaluation)
+    return render(request, 'jobportal/evaluation_form.html', {
+        'form': form, 'interview': interview, 'application': interview.application,
+    })
+
+def candidate_selection(request, pk):
+    job = get_object_or_404(JobPost.objects.select_related('employer'), pk=pk)
+    applications = job.applications.filter(status='interview').select_related(
+        'applicant', 'screening'
+    ).prefetch_related('interviews__evaluation')
+    candidates = []
+    for application in applications:
+        evaluations = [
+            i.evaluation for i in application.interviews.all()
+            if i.status == 'completed' and hasattr(i, 'evaluation')
+        ]
+        screening_total = float(application.screening.total_score) if hasattr(application, 'screening') else 0.0
+        interview_percent = None
+        combined = None
+        if evaluations:
+            average = sum(float(e.total_score) for e in evaluations) / len(evaluations)
+            interview_percent = round(average * 100 / 60, 1)
+            combined = round(screening_total * 0.4 + interview_percent * 0.6, 1)
+        candidates.append({
+            'application': application,
+            'screening_total': screening_total,
+            'interview_percent': interview_percent,
+            'combined': combined,
+            'evaluated': bool(evaluations),
+        })
+    candidates.sort(key=lambda c: (not c['evaluated'], -(c['combined'] or 0)))
+    hires = Hiring.objects.filter(
+        application__job_post=job, status='hired'
+    ).select_related('application__applicant')
+    open_slots = job.vacancies - hires.count()
+    return render(request, 'jobportal/candidate_selection.html', {
+        'job': job,
+        'candidates': candidates,
+        'hires': hires,
+        'open_slots': max(open_slots, 0),
+        'can_select': job.status == 'published' and open_slots > 0,
+    })
+
+def hiring_add(request, pk):
+    application = get_object_or_404(
+        Application.objects.select_related('applicant', 'job_post__employer'), pk=pk
+    )
+    job = application.job_post
+    if Hiring.objects.filter(application=application).exists():
+        messages.error(request, 'This application already has a hiring record.')
+        return redirect('hiring_list')
+    if application.status != 'interview':
+        messages.error(request, 'Only an applicant in the interview stage can be hired.')
+        return redirect('application_detail', pk=application.pk)
+    if job.status != 'published':
+        messages.error(request, 'This job post is not open.')
+        return redirect('candidate_selection', pk=job.pk)
+    if not Evaluation.objects.filter(
+        interview__application=application, interview__status='completed'
+    ).exists():
+        messages.error(request, 'Complete and evaluate an interview first.')
+        return redirect('candidate_selection', pk=job.pk)
+    hired_total = Hiring.objects.filter(application__job_post=job, status='hired').count()
+    if hired_total >= job.vacancies:
+        messages.error(request, 'All vacancies for this job are already filled.')
+        return redirect('candidate_selection', pk=job.pk)
+    if request.method == 'POST':
+        form = HiringForm(request.POST)
+        if form.is_valid():
+            hiring = form.save(commit=False)
+            hiring.application = application
+            hiring.status = 'hired'
+            hiring.save()
+            filled = finish_hiring(hiring)
+            note = ' The job post is now filled and the other applicants were marked not selected.' if filled else ''
+            messages.success(request, f'{application.applicant} was hired as {hiring.position}.{note}')
+            return redirect('hiring_list')
+    else:
+        form = HiringForm(initial={'position': job.title})
+    return render(request, 'jobportal/hiring_form.html', {
+        'form': form, 'application': application, 'title': 'Hire applicant',
+    })
+
+def hiring_list(request):
+    hirings = Hiring.objects.select_related(
+        'application__applicant', 'application__job_post__employer'
+    ).order_by('-hiring_date', '-id')
+    query = request.GET.get('q', '').strip()
+    if query:
+        hirings = hirings.filter(
+            Q(position__icontains=query)
+            | Q(application__application_number__icontains=query)
+            | Q(application__applicant__first_name__icontains=query)
+            | Q(application__applicant__last_name__icontains=query)
+        )
+    return render(request, 'jobportal/hiring_list.html', {
+        'hirings': hirings,
+        'query': query,
+    })
+
+def hiring_edit(request, pk):
+    hiring = get_object_or_404(
+        Hiring.objects.select_related('application__applicant', 'application__job_post'), pk=pk
+    )
+    if request.method == 'POST':
+        form = HiringForm(request.POST, instance=hiring)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'The hiring record was updated.')
+            return redirect('hiring_list')
+    else:
+        form = HiringForm(instance=hiring)
+    return render(request, 'jobportal/hiring_form.html', {
+        'form': form, 'application': hiring.application, 'title': 'Edit hiring record',
+    })
+
+OPEN_APPLICATION_STATUSES = ('submitted', 'under_review', 'shortlisted', 'interview')
+
+def finish_hiring(hiring):
+    application = hiring.application
+    job = application.job_post
+    application.status = 'hired'
+    application.save()
+    notify_applicant(
+        application,
+        f'You were hired as {hiring.position} at {job.employer.company_name}. '
+        f'Your start date is {hiring.start_date:%B %d, %Y}.',
+    )
+    hired_total = Hiring.objects.filter(application__job_post=job, status='hired').count()
+    if hired_total < job.vacancies:
+        return False
+    job.status = 'filled'
+    job.save()
+    for other in job.applications.filter(status__in=OPEN_APPLICATION_STATUSES):
+        other.interviews.filter(status__in=ACTIVE_INTERVIEW).update(status='cancelled')
+        other.status = 'not_selected'
+        other.save()
+        notify_applicant(
+            other,
+            f'The position {job.title} was filled. Your application {other.application_number} was not selected.',
+        )
+    return True
