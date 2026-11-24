@@ -111,6 +111,7 @@
   <aside class="side">
     <a class="brand" href="{% url 'employer_list' %}">Job Portal</a>
     <nav>
+      <a href="{% url 'dashboard' %}" {% if '/dashboard' in request.path %}class="current"{% endif %}>Dashboard</a>
       <a href="{% url 'employer_list' %}" {% if request.path == '/' or '/employers' in request.path %}class="current"{% endif %}>Employers</a>
       <a href="{% url 'category_list' %}" {% if '/categories' in request.path %}class="current"{% endif %}>Job categories</a>
       <a href="{% url 'jobpost_list' %}" {% if '/jobs' in request.path %}class="current"{% endif %}>Job posts</a>
@@ -120,6 +121,7 @@
       <a href="{% url 'interview_list' %}" {% if '/interviews' in request.path %}class="current"{% endif %}>Interviews</a>
       <a href="{% url 'hiring_list' %}" {% if '/hiring' in request.path %}class="current"{% endif %}>Hiring</a>
       <a href="{% url 'notification_list' %}" {% if '/notifications' in request.path %}class="current"{% endif %}>Notifications</a>
+      <a href="{% url 'report_index' %}" {% if '/reports' in request.path %}class="current"{% endif %}>Reports</a>
       <a href="/admin/">Admin</a>
     </nav>
   </aside>

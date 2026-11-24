@@ -1,9 +1,11 @@
-from datetime import date
+import csv
+from datetime import date, timedelta
 
 from django.contrib import messages
-from django.db.models import Count, Q
+from django.db.models import Avg, Count, Q, Sum
 from django.utils.dateparse import parse_date
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
 
@@ -1150,3 +1152,305 @@ def notification_mark_all_read(request):
     count = unread.update(is_read=True)
     messages.success(request, f'{count} notification{"s" if count != 1 else ""} marked as read.')
     return redirect_back(request)
+
+
+def report_dates(request):
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    try:
+        start = parse_date(date_from) if date_from else None
+        end = parse_date(date_to) if date_to else None
+    except ValueError:
+        start = end = None
+    return date_from, date_to, start, end
+
+def csv_cell(value):
+    text = '' if value is None else str(value)
+    if text[:1] in ('=', '+', '-', '@'):
+        text = "'" + text
+    return text
+
+def csv_response(filename, header, rows):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    writer = csv.writer(response)
+    writer.writerow(header)
+    for row in rows:
+        writer.writerow([csv_cell(cell) for cell in row])
+    return response
+
+def report_index(request):
+    return render(request, 'jobportal/report_index.html')
+
+def report_jobs(request):
+    jobs = JobPost.objects.select_related('employer', 'category').annotate(
+        applicant_total=Count('applications', distinct=True),
+        hired_total=Count(
+            'applications__hiring',
+            filter=Q(applications__hiring__status='hired'),
+            distinct=True,
+        ),
+    ).order_by('-created_at')
+    status = request.GET.get('status', '')
+    employer = request.GET.get('employer', '')
+    category = request.GET.get('category', '')
+    date_from, date_to, start, end = report_dates(request)
+
+    if status in dict(JobPost.STATUS_CHOICES):
+        jobs = jobs.filter(status=status)
+    else:
+        status = ''
+    if employer.isdigit():
+        jobs = jobs.filter(employer_id=employer)
+    else:
+        employer = ''
+    if category.isdigit():
+        jobs = jobs.filter(category_id=category)
+    else:
+        category = ''
+    if start:
+        jobs = jobs.filter(created_at__date__gte=start)
+    if end:
+        jobs = jobs.filter(created_at__date__lte=end)
+
+    jobs = list(jobs)
+    if request.GET.get('export') == 'csv':
+        return csv_response(
+            'job_post_report.csv',
+            ['Title', 'Employer', 'Category', 'Type', 'Vacancies', 'Status',
+             'Deadline', 'Posted', 'Applicants', 'Hired'],
+            [[j.title, j.employer.company_name, j.category.name if j.category else '',
+              j.get_employment_type_display(), j.vacancies, j.get_status_display(),
+              j.application_deadline, j.created_at.date(), j.applicant_total, j.hired_total]
+             for j in jobs],
+        )
+    return render(request, 'jobportal/report_jobs.html', {
+        'jobs': jobs,
+        'status': status,
+        'employer': employer,
+        'category': category,
+        'date_from': date_from,
+        'date_to': date_to,
+        'status_choices': JobPost.STATUS_CHOICES,
+        'status_summary': [
+            (label, sum(1 for j in jobs if j.status == value))
+            for value, label in JobPost.STATUS_CHOICES
+        ],
+        'employers': Employer.objects.order_by('company_name'),
+        'categories': JobCategory.objects.order_by('name'),
+    })
+
+def report_applicants(request):
+    applicants = Applicant.objects.annotate(
+        application_total=Count('applications', distinct=True),
+        hired_total=Count(
+            'applications__hiring',
+            filter=Q(applications__hiring__status='hired'),
+            distinct=True,
+        ),
+    ).order_by('last_name', 'first_name')
+    status = request.GET.get('status', '')
+    date_from, date_to, start, end = report_dates(request)
+
+    if status in ('active', 'inactive'):
+        applicants = applicants.filter(status=status)
+    else:
+        status = ''
+    if start:
+        applicants = applicants.filter(created_at__date__gte=start)
+    if end:
+        applicants = applicants.filter(created_at__date__lte=end)
+
+    applicants = list(applicants)
+    if request.GET.get('export') == 'csv':
+        return csv_response(
+            'applicant_report.csv',
+            ['Number', 'Name', 'Email', 'Contact number', 'Status',
+             'Registered', 'Applications', 'Hired'],
+            [[a.applicant_number, f'{a.first_name} {a.last_name}', a.email,
+              a.contact_number, a.get_status_display(), a.created_at.date(),
+              a.application_total, a.hired_total]
+             for a in applicants],
+        )
+    return render(request, 'jobportal/report_applicants.html', {
+        'applicants': applicants,
+        'status': status,
+        'date_from': date_from,
+        'date_to': date_to,
+        'with_applications': sum(1 for a in applicants if a.application_total),
+    })
+
+def report_applications(request):
+    applications = Application.objects.select_related(
+        'applicant', 'job_post__employer', 'screening'
+    ).order_by('-application_date')
+    status = request.GET.get('status', '')
+    job = request.GET.get('job', '')
+    date_from, date_to, start, end = report_dates(request)
+
+    if status in dict(Application.STATUS_CHOICES):
+        applications = applications.filter(status=status)
+    else:
+        status = ''
+    if job.isdigit():
+        applications = applications.filter(job_post_id=job)
+    else:
+        job = ''
+    if start:
+        applications = applications.filter(application_date__date__gte=start)
+    if end:
+        applications = applications.filter(application_date__date__lte=end)
+
+    applications = list(applications)
+    if request.GET.get('export') == 'csv':
+        return csv_response(
+            'application_report.csv',
+            ['Number', 'Applicant', 'Job', 'Employer', 'Applied', 'Screening score', 'Status'],
+            [[a.application_number, f'{a.applicant.first_name} {a.applicant.last_name}',
+              a.job_post.title, a.job_post.employer.company_name,
+              a.application_date.date(),
+              a.screening.total_score if hasattr(a, 'screening') else '',
+              a.get_status_display()]
+             for a in applications],
+        )
+    return render(request, 'jobportal/report_applications.html', {
+        'applications': applications,
+        'status': status,
+        'job': job,
+        'date_from': date_from,
+        'date_to': date_to,
+        'status_choices': Application.STATUS_CHOICES,
+        'status_summary': [
+            (label, sum(1 for a in applications if a.status == value))
+            for value, label in Application.STATUS_CHOICES
+        ],
+        'jobs': JobPost.objects.order_by('title'),
+    })
+
+def report_interviews(request):
+    interviews = Interview.objects.select_related(
+        'application__applicant', 'application__job_post', 'evaluation'
+    ).order_by('-interview_date', '-interview_time')
+    status = request.GET.get('status', '')
+    interviewer = request.GET.get('interviewer', '').strip()
+    date_from, date_to, start, end = report_dates(request)
+
+    if status in dict(Interview.STATUS_CHOICES):
+        interviews = interviews.filter(status=status)
+    else:
+        status = ''
+    if interviewer:
+        interviews = interviews.filter(interviewer__icontains=interviewer)
+    if start:
+        interviews = interviews.filter(interview_date__gte=start)
+    if end:
+        interviews = interviews.filter(interview_date__lte=end)
+
+    interviews = list(interviews)
+    totals = [float(i.evaluation.total_score) for i in interviews if hasattr(i, 'evaluation')]
+    average = round(sum(totals) / len(totals), 1) if totals else None
+    if request.GET.get('export') == 'csv':
+        return csv_response(
+            'interview_report.csv',
+            ['Application', 'Applicant', 'Job', 'Interviewer', 'Date', 'Time',
+             'Location', 'Status', 'Evaluation total'],
+            [[i.application.application_number,
+              f'{i.application.applicant.first_name} {i.application.applicant.last_name}',
+              i.application.job_post.title, i.interviewer, i.interview_date,
+              i.interview_time.strftime('%I:%M %p'), i.location, i.get_status_display(),
+              i.evaluation.total_score if hasattr(i, 'evaluation') else '']
+             for i in interviews],
+        )
+    return render(request, 'jobportal/report_interviews.html', {
+        'interviews': interviews,
+        'status': status,
+        'interviewer': interviewer,
+        'date_from': date_from,
+        'date_to': date_to,
+        'status_choices': Interview.STATUS_CHOICES,
+        'status_summary': [
+            (label, sum(1 for i in interviews if i.status == value))
+            for value, label in Interview.STATUS_CHOICES
+        ],
+        'evaluated_total': len(totals),
+        'average': average,
+    })
+
+def report_hiring(request):
+    hirings = Hiring.objects.select_related(
+        'application__applicant', 'application__job_post__employer'
+    ).order_by('-hiring_date', '-id')
+    status = request.GET.get('status', '')
+    employer = request.GET.get('employer', '')
+    date_from, date_to, start, end = report_dates(request)
+
+    if status in dict(Hiring.STATUS_CHOICES):
+        hirings = hirings.filter(status=status)
+    else:
+        status = ''
+    if employer.isdigit():
+        hirings = hirings.filter(application__job_post__employer_id=employer)
+    else:
+        employer = ''
+    if start:
+        hirings = hirings.filter(hiring_date__gte=start)
+    if end:
+        hirings = hirings.filter(hiring_date__lte=end)
+
+    totals = hirings.aggregate(total=Sum('salary'), average=Avg('salary'))
+    hirings = list(hirings)
+    if request.GET.get('export') == 'csv':
+        return csv_response(
+            'hiring_report.csv',
+            ['Application', 'Applicant', 'Position', 'Employer', 'Job',
+             'Salary', 'Hired on', 'Start date', 'Status'],
+            [[h.application.application_number,
+              f'{h.application.applicant.first_name} {h.application.applicant.last_name}',
+              h.position, h.application.job_post.employer.company_name,
+              h.application.job_post.title, h.salary, h.hiring_date,
+              h.start_date, h.get_status_display()]
+             for h in hirings],
+        )
+    return render(request, 'jobportal/report_hiring.html', {
+        'hirings': hirings,
+        'status': status,
+        'employer': employer,
+        'date_from': date_from,
+        'date_to': date_to,
+        'status_choices': Hiring.STATUS_CHOICES,
+        'employers': Employer.objects.order_by('company_name'),
+        'totals': totals,
+    })
+
+def dashboard(request):
+    today = date.today()
+    status_counts = dict(
+        Application.objects.order_by().values_list('status').annotate(total=Count('id'))
+    )
+    upcoming = Interview.objects.filter(
+        status__in=ACTIVE_INTERVIEW, interview_date__gte=today
+    ).select_related(
+        'application__applicant', 'application__job_post'
+    ).order_by('interview_date', 'interview_time')
+    open_jobs = JobPost.objects.filter(status='published', application_deadline__gte=today)
+    return render(request, 'jobportal/dashboard.html', {
+        'employer_total': Employer.objects.filter(status='active').count(),
+        'open_job_total': open_jobs.count(),
+        'applicant_total': Applicant.objects.filter(status='active').count(),
+        'application_total': Application.objects.count(),
+        'awaiting_review': status_counts.get('submitted', 0),
+        'upcoming_total': upcoming.count(),
+        'hire_total': Hiring.objects.filter(status='hired').count(),
+        'unread_total': Notification.objects.filter(is_read=False).count(),
+        'status_breakdown': [
+            (label, status_counts.get(value, 0))
+            for value, label in Application.STATUS_CHOICES
+        ],
+        'recent_applications': Application.objects.select_related(
+            'applicant', 'job_post'
+        ).order_by('-application_date')[:5],
+        'upcoming_interviews': upcoming[:5],
+        'closing_soon': open_jobs.filter(
+            application_deadline__lte=today + timedelta(days=7)
+        ).select_related('employer').order_by('application_deadline')[:5],
+    })

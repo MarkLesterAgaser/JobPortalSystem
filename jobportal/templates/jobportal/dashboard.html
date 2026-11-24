@@ -1,0 +1,78 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<style>
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .stat-box { display: block; background: #fff; border: 1px solid #eee; border-top: 4px solid #c2185b; border-radius: 6px; padding: 14px; text-decoration: none; color: inherit; }
+  .stat-box strong { display: block; font-size: 28px; color: #9c1349; }
+  .stat-box span { font-size: 13px; }
+</style>
+
+<h2>Dashboard</h2>
+
+<div class="stat-grid">
+  <a class="stat-box" href="{% url 'employer_list' %}"><strong>{{ employer_total }}</strong><span>Active employers</span></a>
+  <a class="stat-box" href="{% url 'job_search' %}"><strong>{{ open_job_total }}</strong><span>Open jobs</span></a>
+  <a class="stat-box" href="{% url 'applicant_list' %}"><strong>{{ applicant_total }}</strong><span>Active applicants</span></a>
+  <a class="stat-box" href="{% url 'application_list' %}"><strong>{{ application_total }}</strong><span>Applications</span></a>
+  <a class="stat-box" href="{% url 'application_list' %}?status=submitted"><strong>{{ awaiting_review }}</strong><span>Awaiting review</span></a>
+  <a class="stat-box" href="{% url 'interview_list' %}"><strong>{{ upcoming_total }}</strong><span>Upcoming interviews</span></a>
+  <a class="stat-box" href="{% url 'hiring_list' %}"><strong>{{ hire_total }}</strong><span>Hires</span></a>
+  <a class="stat-box" href="{% url 'notification_list' %}?status=unread"><strong>{{ unread_total }}</strong><span>Unread notifications</span></a>
+</div>
+
+<h3>Applications by status</h3>
+<table>
+  <tr><th>Status</th><th>Total</th></tr>
+  {% for label, count in status_breakdown %}
+  <tr><td>{{ label }}</td><td>{{ count }}</td></tr>
+  {% endfor %}
+</table>
+
+<h3>Recent applications</h3>
+<table>
+  <tr><th>Number</th><th>Applicant</th><th>Job</th><th>Applied</th><th>Status</th></tr>
+  {% for a in recent_applications %}
+  <tr>
+    <td><a href="{% url 'application_detail' a.pk %}">{{ a.application_number }}</a></td>
+    <td>{{ a.applicant.first_name }} {{ a.applicant.last_name }}</td>
+    <td>{{ a.job_post.title }}</td>
+    <td>{{ a.application_date|date:"M j, Y" }}</td>
+    <td>{{ a.get_status_display }}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="5">No applications yet.</td></tr>
+  {% endfor %}
+</table>
+
+<h3>Upcoming interviews</h3>
+<table>
+  <tr><th>Date</th><th>Time</th><th>Applicant</th><th>Job</th><th>Interviewer</th><th>Status</th></tr>
+  {% for i in upcoming_interviews %}
+  <tr>
+    <td>{{ i.interview_date|date:"M j, Y" }}</td>
+    <td>{{ i.interview_time|time:"g:i A" }}</td>
+    <td>{{ i.application.applicant.first_name }} {{ i.application.applicant.last_name }}</td>
+    <td>{{ i.application.job_post.title }}</td>
+    <td>{{ i.interviewer }}</td>
+    <td>{{ i.get_status_display }}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="6">No upcoming interviews.</td></tr>
+  {% endfor %}
+</table>
+
+<h3>Jobs closing in 7 days</h3>
+<table>
+  <tr><th>Job</th><th>Employer</th><th>Deadline</th></tr>
+  {% for j in closing_soon %}
+  <tr>
+    <td><a href="{% url 'jobpost_detail' j.pk %}">{{ j.title }}</a></td>
+    <td>{{ j.employer.company_name }}</td>
+    <td>{{ j.application_deadline|date:"M j, Y" }}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="3">No jobs are closing soon.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

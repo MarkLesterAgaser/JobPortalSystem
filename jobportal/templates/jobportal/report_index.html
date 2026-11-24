@@ -1,0 +1,15 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<h2>Reports</h2>
+<p>Pick a report. Each one has filters and an Export CSV button.</p>
+
+<table>
+  <tr><th>Report</th><th>What it shows</th></tr>
+  <tr><td><a href="{% url 'report_jobs' %}">Job post report</a></td><td>Job posts by status, employer, category, and date, with applicant and hire counts.</td></tr>
+  <tr><td><a href="{% url 'report_applicants' %}">Applicant report</a></td><td>Applicants by status and registration date, with application and hire counts.</td></tr>
+  <tr><td><a href="{% url 'report_applications' %}">Application report</a></td><td>Applications by status, job, and date, with screening scores.</td></tr>
+  <tr><td><a href="{% url 'report_interviews' %}">Interview report</a></td><td>Interviews by status, interviewer, and date, with evaluation totals.</td></tr>
+  <tr><td><a href="{% url 'report_hiring' %}">Hiring report</a></td><td>Hires by employer, status, and date, with salary totals.</td></tr>
+</table>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Hiring report{% endblock %}
+{% block content %}
+<h2>Hiring report</h2>
+
+<form method="get" class="bar">
+  <select name="status">
+    <option value="">All statuses</option>
+    {% for value, label in status_choices %}
+    <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <select name="employer">
+    <option value="">All employers</option>
+    {% for e in employers %}
+    <option value="{{ e.pk }}" {% if employer == e.pk|stringformat:"s" %}selected{% endif %}>{{ e.company_name }}</option>
+    {% endfor %}
+  </select>
+  <label>Hired from <input type="date" name="date_from" value="{{ date_from }}"></label>
+  <label>To <input type="date" name="date_to" value="{{ date_to }}"></label>
+  <button class="btn" type="submit">Run report</button>
+  <a class="btn gray" href="{% url 'report_hiring' %}">Reset</a>
+  <a class="btn" href="?{{ request.GET.urlencode }}&export=csv" style="margin-left:auto;">Export CSV</a>
+</form>
+
+<p>
+  Total hires {{ hirings|length }}.
+  Total monthly salary PHP {{ totals.total|default:0|floatformat:2 }}.
+  Average salary PHP {{ totals.average|default:0|floatformat:2 }}.
+</p>
+
+<table>
+  <tr>
+    <th>Application</th><th>Applicant</th><th>Position</th><th>Employer</th>
+    <th>Job</th><th>Salary</th><th>Hired on</th><th>Start date</th><th>Status</th>
+  </tr>
+  {% for h in hirings %}
+  <tr>
+    <td><a href="{% url 'application_detail' h.application.pk %}">{{ h.application.application_number }}</a></td>
+    <td>{{ h.application.applicant.first_name }} {{ h.application.applicant.last_name }}</td>
+    <td>{{ h.position }}</td>
+    <td>{{ h.application.job_post.employer.company_name }}</td>
+    <td>{{ h.application.job_post.title }}</td>
+    <td>PHP {{ h.salary|floatformat:2 }}</td>
+    <td>{{ h.hiring_date|date:"M j, Y" }}</td>
+    <td>{{ h.start_date|date:"M j, Y" }}</td>
+    <td>{{ h.get_status_display }}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="9">No hiring records match these filters.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Applicant report{% endblock %}
+{% block content %}
+<h2>Applicant report</h2>
+
+<form method="get" class="bar">
+  <select name="status">
+    <option value="">All statuses</option>
+    <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+    <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+  </select>
+  <label>Registered from <input type="date" name="date_from" value="{{ date_from }}"></label>
+  <label>To <input type="date" name="date_to" value="{{ date_to }}"></label>
+  <button class="btn" type="submit">Run report</button>
+  <a class="btn gray" href="{% url 'report_applicants' %}">Reset</a>
+  <a class="btn" href="?{{ request.GET.urlencode }}&export=csv" style="margin-left:auto;">Export CSV</a>
+</form>
+
+<p>Total {{ applicants|length }}. With at least one application {{ with_applications }}.</p>
+
+<table>
+  <tr>
+    <th>Number</th><th>Name</th><th>Email</th><th>Contact</th><th>Status</th>
+    <th>Registered</th><th>Applications</th><th>Hired</th>
+  </tr>
+  {% for a in applicants %}
+  <tr>
+    <td>{{ a.applicant_number }}</td>
+    <td><a href="{% url 'applicant_profile' a.pk %}">{{ a.first_name }} {{ a.last_name }}</a></td>
+    <td>{{ a.email }}</td>
+    <td>{{ a.contact_number }}</td>
+    <td>{{ a.get_status_display }}</td>
+    <td>{{ a.created_at|date:"M j, Y" }}</td>
+    <td>{{ a.application_total }}</td>
+    <td>{{ a.hired_total }}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="8">No applicants match these filters.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}
