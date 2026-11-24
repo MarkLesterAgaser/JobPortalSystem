@@ -119,6 +119,7 @@
       <a href="{% url 'application_list' %}" {% if '/applications' in request.path %}class="current"{% endif %}>Applications</a>
       <a href="{% url 'interview_list' %}" {% if '/interviews' in request.path %}class="current"{% endif %}>Interviews</a>
       <a href="{% url 'hiring_list' %}" {% if '/hiring' in request.path %}class="current"{% endif %}>Hiring</a>
+      <a href="{% url 'notification_list' %}" {% if '/notifications' in request.path %}class="current"{% endif %}>Notifications</a>
       <a href="/admin/">Admin</a>
     </nav>
   </aside>

@@ -391,6 +391,7 @@ def applicant_profile(request, pk):
         'completion': completion,
         'missing': missing,
         'application_total': applicant.applications.count(),
+        'unread_notifications': applicant.notifications.filter(is_read=False).count(),
     })
 
 
@@ -1099,3 +1100,53 @@ def finish_hiring(hiring):
             f'The position {job.title} was filled. Your application {other.application_number} was not selected.',
         )
     return True
+
+
+def redirect_back(request, default='notification_list'):
+    next_url = request.POST.get('next', '')
+    if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect(default)
+
+def notification_list(request):
+    notifications = Notification.objects.select_related('applicant').order_by('-created_at')
+    applicant = request.GET.get('applicant', '')
+    status = request.GET.get('status', '')
+
+    if applicant.isdigit():
+        notifications = notifications.filter(applicant_id=applicant)
+    else:
+        applicant = ''
+    unread_total = notifications.filter(is_read=False).count()
+
+    if status == 'unread':
+        notifications = notifications.filter(is_read=False)
+    elif status == 'read':
+        notifications = notifications.filter(is_read=True)
+    else:
+        status = ''
+
+    return render(request, 'jobportal/notification_list.html', {
+        'notifications': notifications,
+        'applicant': applicant,
+        'status': status,
+        'unread_total': unread_total,
+        'applicants': Applicant.objects.order_by('last_name', 'first_name'),
+    })
+
+@require_POST
+def notification_mark_read(request, pk):
+    notification = get_object_or_404(Notification, pk=pk)
+    notification.is_read = True
+    notification.save()
+    return redirect_back(request)
+
+@require_POST
+def notification_mark_all_read(request):
+    unread = Notification.objects.filter(is_read=False)
+    applicant = request.POST.get('applicant', '')
+    if applicant.isdigit():
+        unread = unread.filter(applicant_id=applicant)
+    count = unread.update(is_read=True)
+    messages.success(request, f'{count} notification{"s" if count != 1 else ""} marked as read.')
+    return redirect_back(request)

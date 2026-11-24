@@ -1,0 +1,59 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+<h2>Notifications</h2>
+
+<form method="get" class="bar">
+  <select name="applicant">
+    <option value="">All applicants</option>
+    {% for a in applicants %}
+    <option value="{{ a.pk }}" {% if applicant == a.pk|stringformat:"s" %}selected{% endif %}>{{ a.last_name }}, {{ a.first_name }}</option>
+    {% endfor %}
+  </select>
+  <select name="status">
+    <option value="">All</option>
+    <option value="unread" {% if status == 'unread' %}selected{% endif %}>Unread</option>
+    <option value="read" {% if status == 'read' %}selected{% endif %}>Read</option>
+  </select>
+  <button class="btn" type="submit">Filter</button>
+  <a class="btn gray" href="{% url 'notification_list' %}">Reset</a>
+</form>
+
+{% if unread_total %}
+<form method="post" action="{% url 'notification_mark_all_read' %}" style="margin-bottom:12px;">
+  {% csrf_token %}
+  <input type="hidden" name="applicant" value="{{ applicant }}">
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <button class="btn gray" type="submit">Mark all {{ unread_total }} as read</button>
+</form>
+{% endif %}
+
+<table>
+  <tr>
+    <th>Date</th><th>Applicant</th><th>Message</th><th>Status</th><th>Actions</th>
+  </tr>
+  {% for n in notifications %}
+  <tr>
+    <td>{{ n.created_at|date:"M j, Y g:i A" }}</td>
+    <td><a href="{% url 'applicant_profile' n.applicant.pk %}">{{ n.applicant.first_name }} {{ n.applicant.last_name }}</a></td>
+    <td>{% if not n.is_read %}<strong>{{ n.message }}</strong>{% else %}{{ n.message }}{% endif %}</td>
+    <td>
+      <span class="badge {% if n.is_read %}inactive{% else %}active{% endif %}">
+        {% if n.is_read %}Read{% else %}Unread{% endif %}
+      </span>
+    </td>
+    <td>
+      {% if not n.is_read %}
+      <form method="post" action="{% url 'notification_mark_read' n.pk %}" class="inline">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="submit" class="link-btn">Mark as read</button>
+      </form>
+      {% endif %}
+    </td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="5">No notifications found.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}
