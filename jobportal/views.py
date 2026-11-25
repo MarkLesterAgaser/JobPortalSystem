@@ -1,9 +1,11 @@
-from datetime import date
+import csv
+from datetime import date, timedelta
 
 from django.contrib import messages
-from django.db.models import Count, Q
+from django.db.models import Avg, Count, Q, Sum
 from django.utils.dateparse import parse_date
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
 
@@ -13,10 +15,12 @@ from .forms import (
     ApplicantSkillsExperienceForm, ApplicationForm, EmployerForm,
     JobCategoryForm, JobPostForm, JobRequirementForm, ResumeUploadForm,
     ScreeningRemarksForm, ScreeningScoreForm,
+    InterviewForm, ACTIVE_INTERVIEW, EvaluationForm, HiringForm,
 )
 from .models import (
     Applicant, ApplicantProfile, Application, ApplicationDocument, Employer,
     Hiring, JobCategory, JobPost, JobRequirement, Notification, Screening,
+    Interview, Evaluation,
 )
 
 
@@ -400,6 +404,7 @@ def applicant_profile(request, pk):
         'completion': completion,
         'missing': missing,
         'application_total': applicant.applications.count(),
+        'unread_notifications': applicant.notifications.filter(is_read=False).count(),
     })
 
 
@@ -679,6 +684,9 @@ def application_detail(request, pk):
         'profile': get_profile(application.applicant),
         'documents': application.documents.all(),
         'screening': Screening.objects.filter(application=application).first(),
+        'interviews': application.interviews.select_related('evaluation').order_by('-interview_date', '-interview_time'),
+        'can_schedule': application.status in ('shortlisted', 'interview') and not application.interviews.filter(status__in=ACTIVE_INTERVIEW).exists(),
+        'hiring': Hiring.objects.filter(application=application).first(),
     })
 
 
@@ -809,3 +817,660 @@ def landing(request):
             return redirect('employer_list')
         return redirect('jobpost_list')
     return render(request, 'jobportal/no_access.html')
+def notify_applicant(application, text):
+    Notification.objects.create(applicant=application.applicant, message=text[:255])
+
+def interview_schedule(request, pk):
+    application = get_object_or_404(
+        Application.objects.select_related('applicant', 'job_post__employer'), pk=pk
+    )
+    if application.status not in ('shortlisted', 'interview'):
+        messages.error(request, 'Only a shortlisted application can be scheduled for an interview.')
+        return redirect('application_detail', pk=application.pk)
+    if application.interviews.filter(status__in=ACTIVE_INTERVIEW).exists():
+        messages.error(request, 'This application already has an active interview.')
+        return redirect('application_detail', pk=application.pk)
+    if request.method == 'POST':
+        form = InterviewForm(request.POST)
+        if form.is_valid():
+            interview = form.save(commit=False)
+            interview.application = application
+            interview.status = 'scheduled'
+            interview.save()
+            application.status = 'interview'
+            application.save()
+            notify_applicant(
+                application,
+                f'An interview for {application.job_post.title} was scheduled on '
+                f'{interview.interview_date:%B %d, %Y} at {interview.interview_time:%I:%M %p}.',
+            )
+            messages.success(request, 'The interview was scheduled.')
+            return redirect('application_detail', pk=application.pk)
+    else:
+        form = InterviewForm()
+    return render(request, 'jobportal/interview_form.html', {
+        'form': form, 'application': application, 'title': 'Schedule interview',
+    })
+
+
+INTERVIEW_ACTIONS = {
+    'confirm': ('confirmed', ('scheduled', 'rescheduled')),
+    'complete': ('completed', ACTIVE_INTERVIEW),
+    'no_show': ('no_show', ACTIVE_INTERVIEW),
+    'cancel': ('cancelled', ACTIVE_INTERVIEW),
+}
+
+def reset_application_after_interview(application):
+    still_open = application.interviews.filter(status__in=ACTIVE_INTERVIEW + ('completed',)).exists()
+    if application.status == 'interview' and not still_open:
+        application.status = 'shortlisted'
+        application.save()
+
+def interview_list(request):
+    interviews = Interview.objects.select_related(
+        'application__applicant', 'application__job_post', 'evaluation'
+    ).order_by('-interview_date', '-interview_time')
+    query = request.GET.get('q', '').strip()
+    status = request.GET.get('status', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+
+    if query:
+        interviews = interviews.filter(
+            Q(application__application_number__icontains=query)
+            | Q(application__applicant__first_name__icontains=query)
+            | Q(application__applicant__last_name__icontains=query)
+            | Q(interviewer__icontains=query)
+        )
+    if status in dict(Interview.STATUS_CHOICES):
+        interviews = interviews.filter(status=status)
+    else:
+        status = ''
+
+    try:
+        start = parse_date(date_from) if date_from else None
+        end = parse_date(date_to) if date_to else None
+    except ValueError:
+        start = end = None
+    if start:
+        interviews = interviews.filter(interview_date__gte=start)
+    if end:
+        interviews = interviews.filter(interview_date__lte=end)
+
+    return render(request, 'jobportal/interview_list.html', {
+        'interviews': interviews,
+        'query': query,
+        'status': status,
+        'date_from': date_from,
+        'date_to': date_to,
+        'status_choices': Interview.STATUS_CHOICES,
+    })
+
+def interview_reschedule(request, pk):
+    interview = get_object_or_404(
+        Interview.objects.select_related('application__applicant', 'application__job_post'), pk=pk
+    )
+    application = interview.application
+    if interview.status not in ACTIVE_INTERVIEW:
+        messages.error(request, 'Only a scheduled, confirmed, or rescheduled interview can be changed.')
+        return redirect('interview_list')
+    if request.method == 'POST':
+        form = InterviewForm(request.POST, instance=interview)
+        if form.is_valid():
+            interview = form.save(commit=False)
+            interview.status = 'rescheduled'
+            interview.save()
+            notify_applicant(
+                application,
+                f'Your interview for {application.job_post.title} was moved to '
+                f'{interview.interview_date:%B %d, %Y} at {interview.interview_time:%I:%M %p}.',
+            )
+            messages.success(request, 'The interview was rescheduled.')
+            return redirect('interview_list')
+    else:
+        form = InterviewForm(instance=interview)
+    return render(request, 'jobportal/interview_form.html', {
+        'form': form, 'application': application, 'title': 'Reschedule interview',
+    })
+
+@require_POST
+def interview_set_status(request, pk, action):
+    interview = get_object_or_404(
+        Interview.objects.select_related('application__applicant', 'application__job_post'), pk=pk
+    )
+    application = interview.application
+    new_status, allowed = INTERVIEW_ACTIONS[action]
+    if interview.status not in allowed:
+        messages.error(request, f'An interview that is {interview.get_status_display().lower()} cannot use this action.')
+    elif action in ('complete', 'no_show') and interview.interview_date > date.today():
+        messages.error(request, 'This interview is in the future. You cannot mark it yet.')
+    else:
+        interview.status = new_status
+        interview.save()
+        if action == 'confirm':
+            notify_applicant(
+                application,
+                f'Your interview for {application.job_post.title} on {interview.interview_date:%B %d, %Y} was confirmed.',
+            )
+        if action == 'cancel':
+            notify_applicant(
+                application,
+                f'Your interview for {application.job_post.title} was cancelled.',
+            )
+        if action in ('cancel', 'no_show'):
+            reset_application_after_interview(application)
+        messages.success(request, f'The interview is now {interview.get_status_display().lower()}.')
+    return redirect('interview_list')
+
+
+def interview_evaluate(request, pk):
+    interview = get_object_or_404(
+        Interview.objects.select_related('application__applicant', 'application__job_post'), pk=pk
+    )
+    if interview.status != 'completed':
+        messages.error(request, 'Only a completed interview can be evaluated.')
+        return redirect('interview_list')
+    evaluation = Evaluation.objects.filter(interview=interview).first()
+    if request.method == 'POST':
+        form = EvaluationForm(request.POST, instance=evaluation)
+        if form.is_valid():
+            evaluation = form.save(commit=False)
+            evaluation.interview = interview
+            evaluation.save()
+            messages.success(request, f'The evaluation was saved. The total is {evaluation.total_score} out of 60.')
+            return redirect('interview_list')
+    else:
+        form = EvaluationForm(instance=evaluation)
+    return render(request, 'jobportal/evaluation_form.html', {
+        'form': form, 'interview': interview, 'application': interview.application,
+    })
+
+def candidate_selection(request, pk):
+    job = get_object_or_404(JobPost.objects.select_related('employer'), pk=pk)
+    applications = job.applications.filter(status='interview').select_related(
+        'applicant', 'screening'
+    ).prefetch_related('interviews__evaluation')
+    candidates = []
+    for application in applications:
+        evaluations = [
+            i.evaluation for i in application.interviews.all()
+            if i.status == 'completed' and hasattr(i, 'evaluation')
+        ]
+        screening_total = float(application.screening.total_score) if hasattr(application, 'screening') else 0.0
+        interview_percent = None
+        combined = None
+        if evaluations:
+            average = sum(float(e.total_score) for e in evaluations) / len(evaluations)
+            interview_percent = round(average * 100 / 60, 1)
+            combined = round(screening_total * 0.4 + interview_percent * 0.6, 1)
+        candidates.append({
+            'application': application,
+            'screening_total': screening_total,
+            'interview_percent': interview_percent,
+            'combined': combined,
+            'evaluated': bool(evaluations),
+        })
+    candidates.sort(key=lambda c: (not c['evaluated'], -(c['combined'] or 0)))
+    hires = Hiring.objects.filter(
+        application__job_post=job, status='hired'
+    ).select_related('application__applicant')
+    open_slots = job.vacancies - hires.count()
+    return render(request, 'jobportal/candidate_selection.html', {
+        'job': job,
+        'candidates': candidates,
+        'hires': hires,
+        'open_slots': max(open_slots, 0),
+        'can_select': job.status == 'published' and open_slots > 0,
+    })
+
+def hiring_add(request, pk):
+    application = get_object_or_404(
+        Application.objects.select_related('applicant', 'job_post__employer'), pk=pk
+    )
+    job = application.job_post
+    if Hiring.objects.filter(application=application).exists():
+        messages.error(request, 'This application already has a hiring record.')
+        return redirect('hiring_list')
+    if application.status != 'interview':
+        messages.error(request, 'Only an applicant in the interview stage can be hired.')
+        return redirect('application_detail', pk=application.pk)
+    if job.status != 'published':
+        messages.error(request, 'This job post is not open.')
+        return redirect('candidate_selection', pk=job.pk)
+    if not Evaluation.objects.filter(
+        interview__application=application, interview__status='completed'
+    ).exists():
+        messages.error(request, 'Complete and evaluate an interview first.')
+        return redirect('candidate_selection', pk=job.pk)
+    hired_total = Hiring.objects.filter(application__job_post=job, status='hired').count()
+    if hired_total >= job.vacancies:
+        messages.error(request, 'All vacancies for this job are already filled.')
+        return redirect('candidate_selection', pk=job.pk)
+    if request.method == 'POST':
+        form = HiringForm(request.POST)
+        if form.is_valid():
+            hiring = form.save(commit=False)
+            hiring.application = application
+            hiring.status = 'hired'
+            hiring.save()
+            filled = finish_hiring(hiring)
+            note = ' The job post is now filled and the other applicants were marked not selected.' if filled else ''
+            messages.success(request, f'{application.applicant} was hired as {hiring.position}.{note}')
+            return redirect('hiring_list')
+    else:
+        form = HiringForm(initial={'position': job.title})
+    return render(request, 'jobportal/hiring_form.html', {
+        'form': form, 'application': application, 'title': 'Hire applicant',
+    })
+
+def hiring_list(request):
+    hirings = Hiring.objects.select_related(
+        'application__applicant', 'application__job_post__employer'
+    ).order_by('-hiring_date', '-id')
+    query = request.GET.get('q', '').strip()
+    if query:
+        hirings = hirings.filter(
+            Q(position__icontains=query)
+            | Q(application__application_number__icontains=query)
+            | Q(application__applicant__first_name__icontains=query)
+            | Q(application__applicant__last_name__icontains=query)
+        )
+    return render(request, 'jobportal/hiring_list.html', {
+        'hirings': hirings,
+        'query': query,
+    })
+
+def hiring_edit(request, pk):
+    hiring = get_object_or_404(
+        Hiring.objects.select_related('application__applicant', 'application__job_post'), pk=pk
+    )
+    if request.method == 'POST':
+        form = HiringForm(request.POST, instance=hiring)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'The hiring record was updated.')
+            return redirect('hiring_list')
+    else:
+        form = HiringForm(instance=hiring)
+    return render(request, 'jobportal/hiring_form.html', {
+        'form': form, 'application': hiring.application, 'title': 'Edit hiring record',
+    })
+
+OPEN_APPLICATION_STATUSES = ('submitted', 'under_review', 'shortlisted', 'interview')
+
+def finish_hiring(hiring):
+    application = hiring.application
+    job = application.job_post
+    application.status = 'hired'
+    application.save()
+    notify_applicant(
+        application,
+        f'You were hired as {hiring.position} at {job.employer.company_name}. '
+        f'Your start date is {hiring.start_date:%B %d, %Y}.',
+    )
+    hired_total = Hiring.objects.filter(application__job_post=job, status='hired').count()
+    if hired_total < job.vacancies:
+        return False
+    job.status = 'filled'
+    job.save()
+    for other in job.applications.filter(status__in=OPEN_APPLICATION_STATUSES):
+        other.interviews.filter(status__in=ACTIVE_INTERVIEW).update(status='cancelled')
+        other.status = 'not_selected'
+        other.save()
+        notify_applicant(
+            other,
+            f'The position {job.title} was filled. Your application {other.application_number} was not selected.',
+        )
+    return True
+
+
+def redirect_back(request, default='notification_list'):
+    next_url = request.POST.get('next', '')
+    if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect(default)
+
+def notification_list(request):
+    notifications = Notification.objects.select_related('applicant').order_by('-created_at')
+    applicant = request.GET.get('applicant', '')
+    status = request.GET.get('status', '')
+
+    if applicant.isdigit():
+        notifications = notifications.filter(applicant_id=applicant)
+    else:
+        applicant = ''
+    unread_total = notifications.filter(is_read=False).count()
+
+    if status == 'unread':
+        notifications = notifications.filter(is_read=False)
+    elif status == 'read':
+        notifications = notifications.filter(is_read=True)
+    else:
+        status = ''
+
+    return render(request, 'jobportal/notification_list.html', {
+        'notifications': notifications,
+        'applicant': applicant,
+        'status': status,
+        'unread_total': unread_total,
+        'applicants': Applicant.objects.order_by('last_name', 'first_name'),
+    })
+
+@require_POST
+def notification_mark_read(request, pk):
+    notification = get_object_or_404(Notification, pk=pk)
+    notification.is_read = True
+    notification.save()
+    return redirect_back(request)
+
+@require_POST
+def notification_mark_all_read(request):
+    unread = Notification.objects.filter(is_read=False)
+    applicant = request.POST.get('applicant', '')
+    if applicant.isdigit():
+        unread = unread.filter(applicant_id=applicant)
+    count = unread.update(is_read=True)
+    messages.success(request, f'{count} notification{"s" if count != 1 else ""} marked as read.')
+    return redirect_back(request)
+
+
+def report_dates(request):
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    try:
+        start = parse_date(date_from) if date_from else None
+        end = parse_date(date_to) if date_to else None
+    except ValueError:
+        start = end = None
+    return date_from, date_to, start, end
+
+def csv_cell(value):
+    text = '' if value is None else str(value)
+    if text[:1] in ('=', '+', '-', '@'):
+        text = "'" + text
+    return text
+
+def csv_response(filename, header, rows):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    writer = csv.writer(response)
+    writer.writerow(header)
+    for row in rows:
+        writer.writerow([csv_cell(cell) for cell in row])
+    return response
+
+def report_index(request):
+    return render(request, 'jobportal/report_index.html')
+
+def report_jobs(request):
+    jobs = JobPost.objects.select_related('employer', 'category').annotate(
+        applicant_total=Count('applications', distinct=True),
+        hired_total=Count(
+            'applications__hiring',
+            filter=Q(applications__hiring__status='hired'),
+            distinct=True,
+        ),
+    ).order_by('-created_at')
+    status = request.GET.get('status', '')
+    employer = request.GET.get('employer', '')
+    category = request.GET.get('category', '')
+    date_from, date_to, start, end = report_dates(request)
+
+    if status in dict(JobPost.STATUS_CHOICES):
+        jobs = jobs.filter(status=status)
+    else:
+        status = ''
+    if employer.isdigit():
+        jobs = jobs.filter(employer_id=employer)
+    else:
+        employer = ''
+    if category.isdigit():
+        jobs = jobs.filter(category_id=category)
+    else:
+        category = ''
+    if start:
+        jobs = jobs.filter(created_at__date__gte=start)
+    if end:
+        jobs = jobs.filter(created_at__date__lte=end)
+
+    jobs = list(jobs)
+    if request.GET.get('export') == 'csv':
+        return csv_response(
+            'job_post_report.csv',
+            ['Title', 'Employer', 'Category', 'Type', 'Vacancies', 'Status',
+             'Deadline', 'Posted', 'Applicants', 'Hired'],
+            [[j.title, j.employer.company_name, j.category.name if j.category else '',
+              j.get_employment_type_display(), j.vacancies, j.get_status_display(),
+              j.application_deadline, j.created_at.date(), j.applicant_total, j.hired_total]
+             for j in jobs],
+        )
+    return render(request, 'jobportal/report_jobs.html', {
+        'jobs': jobs,
+        'status': status,
+        'employer': employer,
+        'category': category,
+        'date_from': date_from,
+        'date_to': date_to,
+        'status_choices': JobPost.STATUS_CHOICES,
+        'status_summary': [
+            (label, sum(1 for j in jobs if j.status == value))
+            for value, label in JobPost.STATUS_CHOICES
+        ],
+        'employers': Employer.objects.order_by('company_name'),
+        'categories': JobCategory.objects.order_by('name'),
+    })
+
+def report_applicants(request):
+    applicants = Applicant.objects.annotate(
+        application_total=Count('applications', distinct=True),
+        hired_total=Count(
+            'applications__hiring',
+            filter=Q(applications__hiring__status='hired'),
+            distinct=True,
+        ),
+    ).order_by('last_name', 'first_name')
+    status = request.GET.get('status', '')
+    date_from, date_to, start, end = report_dates(request)
+
+    if status in ('active', 'inactive'):
+        applicants = applicants.filter(status=status)
+    else:
+        status = ''
+    if start:
+        applicants = applicants.filter(created_at__date__gte=start)
+    if end:
+        applicants = applicants.filter(created_at__date__lte=end)
+
+    applicants = list(applicants)
+    if request.GET.get('export') == 'csv':
+        return csv_response(
+            'applicant_report.csv',
+            ['Number', 'Name', 'Email', 'Contact number', 'Status',
+             'Registered', 'Applications', 'Hired'],
+            [[a.applicant_number, f'{a.first_name} {a.last_name}', a.email,
+              a.contact_number, a.get_status_display(), a.created_at.date(),
+              a.application_total, a.hired_total]
+             for a in applicants],
+        )
+    return render(request, 'jobportal/report_applicants.html', {
+        'applicants': applicants,
+        'status': status,
+        'date_from': date_from,
+        'date_to': date_to,
+        'with_applications': sum(1 for a in applicants if a.application_total),
+    })
+
+def report_applications(request):
+    applications = Application.objects.select_related(
+        'applicant', 'job_post__employer', 'screening'
+    ).order_by('-application_date')
+    status = request.GET.get('status', '')
+    job = request.GET.get('job', '')
+    date_from, date_to, start, end = report_dates(request)
+
+    if status in dict(Application.STATUS_CHOICES):
+        applications = applications.filter(status=status)
+    else:
+        status = ''
+    if job.isdigit():
+        applications = applications.filter(job_post_id=job)
+    else:
+        job = ''
+    if start:
+        applications = applications.filter(application_date__date__gte=start)
+    if end:
+        applications = applications.filter(application_date__date__lte=end)
+
+    applications = list(applications)
+    if request.GET.get('export') == 'csv':
+        return csv_response(
+            'application_report.csv',
+            ['Number', 'Applicant', 'Job', 'Employer', 'Applied', 'Screening score', 'Status'],
+            [[a.application_number, f'{a.applicant.first_name} {a.applicant.last_name}',
+              a.job_post.title, a.job_post.employer.company_name,
+              a.application_date.date(),
+              a.screening.total_score if hasattr(a, 'screening') else '',
+              a.get_status_display()]
+             for a in applications],
+        )
+    return render(request, 'jobportal/report_applications.html', {
+        'applications': applications,
+        'status': status,
+        'job': job,
+        'date_from': date_from,
+        'date_to': date_to,
+        'status_choices': Application.STATUS_CHOICES,
+        'status_summary': [
+            (label, sum(1 for a in applications if a.status == value))
+            for value, label in Application.STATUS_CHOICES
+        ],
+        'jobs': JobPost.objects.order_by('title'),
+    })
+
+def report_interviews(request):
+    interviews = Interview.objects.select_related(
+        'application__applicant', 'application__job_post', 'evaluation'
+    ).order_by('-interview_date', '-interview_time')
+    status = request.GET.get('status', '')
+    interviewer = request.GET.get('interviewer', '').strip()
+    date_from, date_to, start, end = report_dates(request)
+
+    if status in dict(Interview.STATUS_CHOICES):
+        interviews = interviews.filter(status=status)
+    else:
+        status = ''
+    if interviewer:
+        interviews = interviews.filter(interviewer__icontains=interviewer)
+    if start:
+        interviews = interviews.filter(interview_date__gte=start)
+    if end:
+        interviews = interviews.filter(interview_date__lte=end)
+
+    interviews = list(interviews)
+    totals = [float(i.evaluation.total_score) for i in interviews if hasattr(i, 'evaluation')]
+    average = round(sum(totals) / len(totals), 1) if totals else None
+    if request.GET.get('export') == 'csv':
+        return csv_response(
+            'interview_report.csv',
+            ['Application', 'Applicant', 'Job', 'Interviewer', 'Date', 'Time',
+             'Location', 'Status', 'Evaluation total'],
+            [[i.application.application_number,
+              f'{i.application.applicant.first_name} {i.application.applicant.last_name}',
+              i.application.job_post.title, i.interviewer, i.interview_date,
+              i.interview_time.strftime('%I:%M %p'), i.location, i.get_status_display(),
+              i.evaluation.total_score if hasattr(i, 'evaluation') else '']
+             for i in interviews],
+        )
+    return render(request, 'jobportal/report_interviews.html', {
+        'interviews': interviews,
+        'status': status,
+        'interviewer': interviewer,
+        'date_from': date_from,
+        'date_to': date_to,
+        'status_choices': Interview.STATUS_CHOICES,
+        'status_summary': [
+            (label, sum(1 for i in interviews if i.status == value))
+            for value, label in Interview.STATUS_CHOICES
+        ],
+        'evaluated_total': len(totals),
+        'average': average,
+    })
+
+def report_hiring(request):
+    hirings = Hiring.objects.select_related(
+        'application__applicant', 'application__job_post__employer'
+    ).order_by('-hiring_date', '-id')
+    status = request.GET.get('status', '')
+    employer = request.GET.get('employer', '')
+    date_from, date_to, start, end = report_dates(request)
+
+    if status in dict(Hiring.STATUS_CHOICES):
+        hirings = hirings.filter(status=status)
+    else:
+        status = ''
+    if employer.isdigit():
+        hirings = hirings.filter(application__job_post__employer_id=employer)
+    else:
+        employer = ''
+    if start:
+        hirings = hirings.filter(hiring_date__gte=start)
+    if end:
+        hirings = hirings.filter(hiring_date__lte=end)
+
+    totals = hirings.aggregate(total=Sum('salary'), average=Avg('salary'))
+    hirings = list(hirings)
+    if request.GET.get('export') == 'csv':
+        return csv_response(
+            'hiring_report.csv',
+            ['Application', 'Applicant', 'Position', 'Employer', 'Job',
+             'Salary', 'Hired on', 'Start date', 'Status'],
+            [[h.application.application_number,
+              f'{h.application.applicant.first_name} {h.application.applicant.last_name}',
+              h.position, h.application.job_post.employer.company_name,
+              h.application.job_post.title, h.salary, h.hiring_date,
+              h.start_date, h.get_status_display()]
+             for h in hirings],
+        )
+    return render(request, 'jobportal/report_hiring.html', {
+        'hirings': hirings,
+        'status': status,
+        'employer': employer,
+        'date_from': date_from,
+        'date_to': date_to,
+        'status_choices': Hiring.STATUS_CHOICES,
+        'employers': Employer.objects.order_by('company_name'),
+        'totals': totals,
+    })
+
+def dashboard(request):
+    today = date.today()
+    status_counts = dict(
+        Application.objects.order_by().values_list('status').annotate(total=Count('id'))
+    )
+    upcoming = Interview.objects.filter(
+        status__in=ACTIVE_INTERVIEW, interview_date__gte=today
+    ).select_related(
+        'application__applicant', 'application__job_post'
+    ).order_by('interview_date', 'interview_time')
+    open_jobs = JobPost.objects.filter(status='published', application_deadline__gte=today)
+    return render(request, 'jobportal/dashboard.html', {
+        'employer_total': Employer.objects.filter(status='active').count(),
+        'open_job_total': open_jobs.count(),
+        'applicant_total': Applicant.objects.filter(status='active').count(),
+        'application_total': Application.objects.count(),
+        'awaiting_review': status_counts.get('submitted', 0),
+        'upcoming_total': upcoming.count(),
+        'hire_total': Hiring.objects.filter(status='hired').count(),
+        'unread_total': Notification.objects.filter(is_read=False).count(),
+        'status_breakdown': [
+            (label, status_counts.get(value, 0))
+            for value, label in Application.STATUS_CHOICES
+        ],
+        'recent_applications': Application.objects.select_related(
+            'applicant', 'job_post'
+        ).order_by('-application_date')[:5],
+        'upcoming_interviews': upcoming[:5],
+        'closing_soon': open_jobs.filter(
+            application_deadline__lte=today + timedelta(days=7)
+        ).select_related('employer').order_by('application_deadline')[:5],
+    })

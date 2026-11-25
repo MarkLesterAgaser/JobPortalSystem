@@ -1,0 +1,50 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Interview report{% endblock %}
+{% block content %}
+<h2>Interview report</h2>
+
+<form method="get" class="bar">
+  <select name="status">
+    <option value="">All statuses</option>
+    {% for value, label in status_choices %}
+    <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <input type="text" name="interviewer" value="{{ interviewer }}" placeholder="Interviewer name">
+  <label>From <input type="date" name="date_from" value="{{ date_from }}"></label>
+  <label>To <input type="date" name="date_to" value="{{ date_to }}"></label>
+  <button class="btn" type="submit">Run report</button>
+  <a class="btn gray" href="{% url 'report_interviews' %}">Reset</a>
+  <a class="btn" href="?{{ request.GET.urlencode }}&export=csv" style="margin-left:auto;">Export CSV</a>
+</form>
+
+<p>
+  Total {{ interviews|length }}.
+  {% for label, count in status_summary %}{{ label }} {{ count }}{% if not forloop.last %}, {% endif %}{% endfor %}
+</p>
+<p>
+  Evaluated {{ evaluated_total }}.
+  Average evaluation {% if average is not None %}{{ average }} of 60{% else %}None yet{% endif %}.
+</p>
+
+<table>
+  <tr>
+    <th>Application</th><th>Applicant</th><th>Job</th><th>Interviewer</th>
+    <th>Date</th><th>Time</th><th>Status</th><th>Evaluation</th>
+  </tr>
+  {% for i in interviews %}
+  <tr>
+    <td><a href="{% url 'application_detail' i.application.pk %}">{{ i.application.application_number }}</a></td>
+    <td>{{ i.application.applicant.first_name }} {{ i.application.applicant.last_name }}</td>
+    <td>{{ i.application.job_post.title }}</td>
+    <td>{{ i.interviewer }}</td>
+    <td>{{ i.interview_date|date:"M j, Y" }}</td>
+    <td>{{ i.interview_time|time:"g:i A" }}</td>
+    <td>{{ i.get_status_display }}</td>
+    <td>{% if i.evaluation %}{{ i.evaluation.total_score }} of 60{% else %}Not evaluated{% endif %}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="8">No interviews match these filters.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

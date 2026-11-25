@@ -5,6 +5,7 @@
 
 <p>
   <a class="btn gray" href="{% url 'application_list' %}">Back to applications</a>
+  {% if can_schedule %}<a class="btn" href="{% url 'interview_schedule' application.pk %}">Schedule interview</a>{% endif %}
   {% if application.status == 'submitted' %}
   <form method="post" action="{% url 'application_review_start' application.pk %}" class="inline">
     {% csrf_token %}
@@ -71,5 +72,36 @@
 </table>
 {% else %}
 <p>Not screened yet.</p>
+{% endif %}
+
+<h3>Interviews</h3>
+<table>
+  <tr><th>Date</th><th>Time</th><th>Interviewer</th><th>Location</th><th>Status</th><th>Evaluation</th></tr>
+  {% for i in interviews %}
+  <tr>
+    <td>{{ i.interview_date|date:"M j, Y" }}</td>
+    <td>{{ i.interview_time|time:"g:i A" }}</td>
+    <td>{{ i.interviewer }}</td>
+    <td>{{ i.location }}</td>
+    <td>{{ i.get_status_display }}</td>
+    <td>{% if i.evaluation %}{{ i.evaluation.total_score }} of 60{% else %}Not evaluated{% endif %}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="6">No interviews yet.</td></tr>
+  {% endfor %}
+</table>
+
+<h3>Hiring</h3>
+{% if hiring %}
+<table>
+  <tr><th>Position</th><td>{{ hiring.position }}</td></tr>
+  <tr><th>Salary</th><td>PHP {{ hiring.salary|floatformat:2 }}</td></tr>
+  <tr><th>Hired on</th><td>{{ hiring.hiring_date|date:"F j, Y" }}</td></tr>
+  <tr><th>Start date</th><td>{{ hiring.start_date|date:"F j, Y" }}</td></tr>
+  <tr><th>Status</th><td>{{ hiring.get_status_display }}</td></tr>
+  <tr><th>Remarks</th><td>{{ hiring.remarks|default:"None"|linebreaksbr }}</td></tr>
+</table>
+{% else %}
+<p>Not hired.</p>
 {% endif %}
 {% endblock %}

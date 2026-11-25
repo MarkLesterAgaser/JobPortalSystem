@@ -17,6 +17,7 @@
   <a class="btn" href="{% url 'applicant_edit' applicant.pk %}">Edit personal info</a>
   <a class="btn" href="{% url 'applicant_profile_edit' applicant.pk %}">Edit training and references</a>
   <a class="btn" href="{% url 'applicant_applications' applicant.pk %}">Application history</a>
+  <a class="btn" href="{% url 'notification_list' %}?applicant={{ applicant.pk }}">Notifications ({{ unread_notifications }})</a>
 </p>
 
 <table>
