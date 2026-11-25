@@ -7,6 +7,7 @@ OPEN_NAMES = {'login', 'logout', 'landing', 'home'}
 
 ADMIN_ONLY = {
     'employer_list', 'employer_add', 'employer_toggle',
+    'employer_edit',
     'category_add', 'category_edit', 'category_toggle',
     'applicant_list', 'applicant_add', 'applicant_toggle',
     'report_applicants',

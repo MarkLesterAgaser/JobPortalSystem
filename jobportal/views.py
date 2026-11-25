@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.db.models import Avg, Count, Q, Sum
 from django.utils.dateparse import parse_date
 from django.utils.http import url_has_allowed_host_and_scheme
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
 
@@ -362,14 +362,20 @@ def applicant_add(request):
 
 def applicant_edit(request, pk):
     applicant = get_object_or_404(Applicant, pk=pk)
+    is_applicant = get_role(request.user) == 'applicant'
     if request.method == 'POST':
         form = ApplicantForm(request.POST, instance=applicant)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Applicant was updated.')
-            return redirect('applicant_list')
     else:
         form = ApplicantForm(instance=applicant)
+    if is_applicant:
+        form.fields.pop('status')
+        form.fields.pop('email')
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, 'Applicant was updated.')
+        if is_applicant:
+            return redirect('applicant_profile', pk=applicant.pk)
+        return redirect('applicant_list')
     return render(request, 'jobportal/applicant_form.html', {
         'form': form, 'title': 'Edit applicant',
     })
@@ -449,6 +455,7 @@ STATUS_ACTIONS = {
     'publish': ('draft', 'published'),
     'close': ('published', 'closed'),
     'fill': ('published', 'filled'),
+    'reopen': ('closed', 'published'),
 }
 
 
@@ -456,13 +463,14 @@ STATUS_ACTIONS = {
 def jobpost_set_status(request, pk, action):
     job = get_object_or_404(JobPost, pk=pk)
     needed, new_status = STATUS_ACTIONS[action]
+    opening = action in ('publish', 'reopen')
     if job.status != needed:
         messages.error(request, f'Only a {needed} job post can use this action.')
-    elif action == 'publish' and job.employer.status != 'active':
+    elif opening and job.employer.status != 'active':
         messages.error(request, 'The employer is inactive. Activate the employer first.')
-    elif action == 'publish' and job.application_deadline < date.today():
+    elif opening and job.application_deadline < date.today():
         messages.error(request, 'The deadline is in the past. Edit the job post first.')
-    elif action == 'publish' and not job.requirements.exists():
+    elif opening and not job.requirements.exists():
         messages.error(request, 'Add at least one requirement before you publish.')
     else:
         job.status = new_status
@@ -521,6 +529,8 @@ def jobpost_detail(request, pk):
     job = get_object_or_404(
         JobPost.objects.select_related('employer', 'category'), pk=pk
     )
+    if get_role(request.user) == 'applicant' and job.status != 'published':
+        raise Http404
     return render(request, 'jobportal/jobpost_detail.html', {
         'job': job,
         'requirements': job.requirements.all(),
@@ -774,20 +784,28 @@ DECISIONS = {
 
 @require_POST
 def application_decide(request, pk, decision):
-    application = get_object_or_404(Application, pk=pk)
-    new_status = DECISIONS[decision]
-    screening = Screening.objects.filter(application=application).first()
+    application = get_object_or_404(
+        Application.objects.select_related('job_post'), pk=pk
+    )
     if application.status != 'under_review':
         messages.error(request, 'Only an application under review can be shortlisted or rejected.')
-    elif screening is None or screening.total_score <= 0:
+        return redirect('application_detail', pk=application.pk)
+    screening = get_screening(application)
+    if decision == 'shortlist' and screening.total_score <= 0:
         messages.error(request, 'Enter the screening scores first.')
     elif decision == 'shortlist' and screening.total_score < PASSING_SCORE:
         messages.error(request, f'The total score is below the passing score of {PASSING_SCORE}.')
     else:
+        new_status = DECISIONS[decision]
         application.status = new_status
         application.save()
         screening.status = new_status
         screening.save()
+        if decision == 'shortlist':
+            text = f'Your application {application.application_number} for {application.job_post.title} was shortlisted.'
+        else:
+            text = f'Your application {application.application_number} for {application.job_post.title} was not successful.'
+        notify_applicant(application, text)
         messages.success(request, f'{application.application_number} is now {application.get_status_display().lower()}.')
     return redirect('application_detail', pk=application.pk)
 

@@ -15,4 +15,10 @@
   <input type="hidden" name="next" value="{{ request.path }}">
   <button type="submit" class="link-btn">Mark filled</button>
 </form>
+{% elif j.status == 'closed' %}
+<form method="post" action="{% url 'jobpost_reopen' j.pk %}" class="inline">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.path }}">
+  <button type="submit" class="link-btn">Reopen</button>
+</form>
 {% endif %}

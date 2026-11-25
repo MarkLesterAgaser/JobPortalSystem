@@ -96,6 +96,7 @@ class JobPostForm(forms.ModelForm):
         ).order_by('name')
         self.fields['employer'].empty_label = 'Select an employer'
         self.fields['category'].empty_label = 'Select a category'
+        self.fields.pop('status')
 
     def clean_vacancies(self):
         vacancies = self.cleaned_data['vacancies']

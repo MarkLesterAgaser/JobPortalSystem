@@ -14,7 +14,7 @@
   {% endif %}
   {% if application.status == 'under_review' %}<a class="btn" href="{% url 'screening_review' application.pk %}">Screen application</a>{% endif %}
   {% if application.status == 'under_review' %}<a class="btn" href="{% url 'screening_score' application.pk %}">Enter scores</a>{% endif %}
-  {% if application.status == 'under_review' and screening %}
+  {% if application.status == 'under_review' %}
   <form method="post" action="{% url 'application_shortlist' application.pk %}" class="inline">
     {% csrf_token %}
     <button type="submit" class="btn">Shortlist</button>

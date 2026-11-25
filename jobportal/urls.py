@@ -27,6 +27,7 @@ urlpatterns = [
     path('jobs/<int:pk>/publish/', views.jobpost_set_status, {'action': 'publish'}, name='jobpost_publish'),
     path('jobs/<int:pk>/close/', views.jobpost_set_status, {'action': 'close'}, name='jobpost_close'),
     path('jobs/<int:pk>/fill/', views.jobpost_set_status, {'action': 'fill'}, name='jobpost_fill'),
+    path('jobs/<int:pk>/reopen/', views.jobpost_set_status, {'action': 'reopen'}, name='jobpost_reopen'),
     path('browse/', views.job_search, name='job_search'),
     path('jobs/<int:pk>/apply/', views.job_apply, name='job_apply'),
     path('applications/<int:pk>/confirmation/', views.application_confirmation, name='application_confirmation'),

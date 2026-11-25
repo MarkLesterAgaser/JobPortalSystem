@@ -12,6 +12,6 @@
     </div>
   {% endfor %}
   <button class="btn" type="submit">Save applicant</button>
-  <a class="btn gray" href="{% url 'applicant_list' %}">Cancel</a>
+  {% if user_role == 'applicant' and my_applicant_id %}<a class="btn gray" href="{% url 'applicant_profile' my_applicant_id %}">Cancel</a>{% else %}<a class="btn gray" href="{% url 'applicant_list' %}">Cancel</a>{% endif %}
 </form>
 {% endblock %}
