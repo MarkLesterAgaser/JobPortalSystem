@@ -1,8 +1,12 @@
 from django.urls import path
+from django.contrib.auth import views as auth_views
 from . import views
 
 urlpatterns = [
-    path('', views.employer_list, name='home'),
+    path('', views.landing, name='home'),
+    path('login/', auth_views.LoginView.as_view(template_name='jobportal/login.html'), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+    path('welcome/', views.landing, name='landing'),
     path('employers/', views.employer_list, name='employer_list'),
     path('employers/add/', views.employer_add, name='employer_add'),
     path('employers/<int:pk>/', views.employer_detail, name='employer_detail'),

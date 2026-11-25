@@ -5,12 +5,22 @@ from datetime import date
 
 from .models import (
     Applicant, ApplicantProfile, Application, Employer, JobCategory, JobPost,
-    Screening,
+    Role, Screening, UserProfile,
 )
+from django.contrib.auth.models import User
 
 
 class ApplicationWorkflowTests(TestCase):
     def setUp(self):
+        admin_role = Role.objects.create(name='Admin')
+        admin = User.objects.create_superuser(
+            username='testadmin',
+            email='admin@example.com',
+            password='test-password',
+        )
+        UserProfile.objects.create(user=admin, role=admin_role)
+        self.client.force_login(admin)
+
         self.employer = Employer.objects.create(
             company_name='Example Ltd',
             company_type='Private',

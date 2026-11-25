@@ -1,0 +1,7 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Page not found{% endblock %}
+{% block content %}
+<h2>Page not found</h2>
+<p>The page you asked for does not exist. It may have been moved or deleted.</p>
+<p><a class="btn" href="{% url 'landing' %}">Go back home</a></p>
+{% endblock %}

@@ -7,6 +7,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
 
+from .access import get_role
 from .forms import (
     ApplicantEducationForm, ApplicantForm, ApplicantProfileInfoForm,
     ApplicantSkillsExperienceForm, ApplicationForm, EmployerForm,
@@ -77,6 +78,9 @@ def employer_detail(request, pk):
 @require_POST
 def employer_toggle(request, pk):
     employer = get_object_or_404(Employer, pk=pk)
+    if employer.status == 'active' and employer.job_posts.filter(status='published').exists():
+        messages.error(request, 'Close the published jobs of this employer first.')
+        return redirect('employer_detail', pk=employer.pk)
     employer.status = 'inactive' if employer.status == 'active' else 'active'
     employer.save()
     messages.success(request, f'{employer.company_name} is now {employer.status}.')
@@ -230,7 +234,11 @@ def jobpost_add(request):
             messages.success(request, f'{job.title} was added.')
             return redirect('jobpost_list')
     else:
-        form = JobPostForm()
+        initial = {}
+        employer_id = request.GET.get('employer', '')
+        if employer_id.isdigit():
+            initial['employer'] = employer_id
+        form = JobPostForm(initial=initial)
     return render(request, 'jobportal/jobpost_form.html', {
         'form': form, 'title': 'Add job post',
     })
@@ -253,6 +261,9 @@ def jobpost_edit(request, pk):
 
 def jobpost_delete(request, pk):
     job = get_object_or_404(JobPost, pk=pk)
+    if job.applications.exists():
+        messages.error(request, 'This job post has applications. Close it instead of deleting it.')
+        return redirect('jobpost_list')
     if request.method == 'POST':
         title = job.title
         job.delete()
@@ -787,3 +798,14 @@ def shortlist_list(request):
         'job': job,
         'jobs': JobPost.objects.filter(applications__status='shortlisted').distinct().order_by('title'),
     })
+
+
+def landing(request):
+    role = get_role(request.user)
+    if role == 'applicant':
+        return redirect('job_search')
+    if role in ('admin', 'employer'):
+        if role == 'admin':
+            return redirect('employer_list')
+        return redirect('jobpost_list')
+    return render(request, 'jobportal/no_access.html')

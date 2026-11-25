@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Log in</title>
+  <style>
+    body { font-family: 'Public Sans', Arial, sans-serif; background: #fdf2f6; margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .login-box { background: #fff; border-top: 5px solid #c2185b; border-radius: 6px; padding: 28px; width: 100%; max-width: 360px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    h1 { color: #9c1349; margin-top: 0; }
+    label { display: block; margin-top: 12px; font-size: 14px; }
+    input[type=text], input[type=password] { width: 100%; padding: 9px; margin-top: 4px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+    button { margin-top: 18px; width: 100%; padding: 10px; background: #c2185b; color: #fff; border: 0; border-radius: 4px; font-size: 15px; cursor: pointer; }
+    .error { color: #b00020; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <h1>Job Portal</h1>
+    <p>Log in to continue.</p>
+    <form method="post">
+      {% csrf_token %}
+      {% if form.errors %}<p class="error">The username or password is wrong. Try again.</p>{% endif %}
+      <label for="id_username">Username</label>
+      <input type="text" name="username" id="id_username" autofocus required value="{{ form.username.value|default:'' }}">
+      <label for="id_password">Password</label>
+      <input type="password" name="password" id="id_password" required>
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit">Log in</button>
+    </form>
+  </div>
+</body>
+</html>

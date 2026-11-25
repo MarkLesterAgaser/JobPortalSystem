@@ -20,6 +20,22 @@ class EmployerForm(forms.ModelForm):
             'company_description': forms.Textarea(attrs={'rows': 4}),
         }
 
+    def clean_company_name(self):
+        name = self.cleaned_data['company_name'].strip()
+        duplicates = Employer.objects.filter(company_name__iexact=name)
+        if self.instance.pk:
+            duplicates = duplicates.exclude(pk=self.instance.pk)
+        if duplicates.exists():
+            raise forms.ValidationError('An employer with this company name already exists.')
+        return name
+
+    def clean_contact_number(self):
+        number = self.cleaned_data['contact_number'].strip()
+        digits = [ch for ch in number if ch.isdigit()]
+        if any(ch not in '0123456789 +-()' for ch in number) or not 7 <= len(digits) <= 13:
+            raise forms.ValidationError('Enter a valid contact number.')
+        return number
+
 class JobCategoryForm(forms.ModelForm):
     class Meta:
         model = JobCategory
@@ -57,6 +73,18 @@ class JobPostForm(forms.ModelForm):
                 attrs={'type': 'date'}, format='%Y-%m-%d'
             ),
         }
+
+    def clean_salary_min(self):
+        value = self.cleaned_data['salary_min']
+        if value is not None and value < 0:
+            raise forms.ValidationError('Salary cannot be negative.')
+        return value
+
+    def clean_salary_max(self):
+        value = self.cleaned_data['salary_max']
+        if value is not None and value < 0:
+            raise forms.ValidationError('Salary cannot be negative.')
+        return value
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -124,6 +152,18 @@ class ApplicantForm(forms.ModelForm):
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
             'career_objective': forms.Textarea(attrs={'rows': 4}),
         }
+
+    def _clean_person_name(self, field, label):
+        value = self.cleaned_data[field].strip()
+        if any(ch.isdigit() for ch in value):
+            raise forms.ValidationError(f'{label} cannot contain numbers.')
+        return value
+
+    def clean_first_name(self):
+        return self._clean_person_name('first_name', 'First name')
+
+    def clean_last_name(self):
+        return self._clean_person_name('last_name', 'Last name')
 
     def clean_contact_number(self):
         number = self.cleaned_data['contact_number'].strip()

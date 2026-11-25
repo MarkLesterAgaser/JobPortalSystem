@@ -42,6 +42,8 @@
   }
   .side nav a:hover, .side nav a.current { background: var(--pine-dark); color: #fff; }
   .side nav a.current { font-weight: 600; box-shadow: inset 3px 0 0 #f06292; }
+  .sidebar-user { margin-top: 24px; padding-top: 12px; border-top: 1px solid #f06292; color: #fff; font-size: 0.9rem; }
+  .sidebar-user .link-btn { color: #fff; }
   main { flex: 1; min-width: 0; max-width: 1100px; padding: 32px 40px 60px; }
 
   h2 { font-size: 1.6rem; line-height: 1.2; margin: 0 0 20px; letter-spacing: -0.01em; }
@@ -111,14 +113,35 @@
   <aside class="side">
     <a class="brand" href="{% url 'employer_list' %}">Job Portal</a>
     <nav>
+      {% if user_role == 'admin' %}
       <a href="{% url 'employer_list' %}" {% if request.path == '/' or '/employers' in request.path %}class="current"{% endif %}>Employers</a>
       <a href="{% url 'category_list' %}" {% if '/categories' in request.path %}class="current"{% endif %}>Job categories</a>
+      {% endif %}
+      {% if user_role == 'admin' or user_role == 'employer' %}
       <a href="{% url 'jobpost_list' %}" {% if '/jobs' in request.path %}class="current"{% endif %}>Job posts</a>
-      <a href="{% url 'job_search' %}" {% if '/browse' in request.path %}class="current"{% endif %}>Browse jobs</a>
-      <a href="{% url 'applicant_list' %}" {% if '/applicants' in request.path %}class="current"{% endif %}>Applicants</a>
       <a href="{% url 'application_list' %}" {% if '/applications' in request.path %}class="current"{% endif %}>Applications</a>
+      {% endif %}
+      {% if user_role %}
+      <a href="{% url 'job_search' %}" {% if '/browse' in request.path %}class="current"{% endif %}>Browse jobs</a>
+      {% if my_applicant_id %}
+      <a href="{% url 'applicant_profile' my_applicant_id %}">My profile</a>
+      <a href="{% url 'applicant_applications' my_applicant_id %}">My applications</a>
+      {% endif %}
+      {% endif %}
+      {% if user_role == 'admin' %}
+      <a href="{% url 'applicant_list' %}" {% if '/applicants' in request.path %}class="current"{% endif %}>Applicants</a>
       <a href="/admin/">Admin</a>
+      {% endif %}
     </nav>
+    {% if user.is_authenticated %}
+    <div class="sidebar-user">
+      <span>{{ user.username }}{% if user_role %} ({{ user_role }}){% endif %}</span>
+      <form method="post" action="{% url 'logout' %}" class="inline">
+        {% csrf_token %}
+        <button type="submit" class="link-btn">Log out</button>
+      </form>
+    </div>
+    {% endif %}
   </aside>
   <main>
     {% for message in messages %}
