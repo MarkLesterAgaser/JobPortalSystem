@@ -29,6 +29,12 @@
   Average salary PHP {{ totals.average|default:0|floatformat:2 }}.
 </p>
 
+<p>Hiring success rate {{ success_rate }} percent. {{ hired_total }} hired from {{ application_total }} applications.</p>
+<p>Hires by employer. {% for name, count in employer_summary %}{{ name }} {{ count }}{% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}</p>
+<p>Hires by job category. {% for name, count in category_summary %}{{ name }} {{ count }}{% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}</p>
+<p>Hires by month. {% for name, count in month_summary %}{{ name }} {{ count }}{% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}</p>
+<h3>Successful applicants</h3>
+
 <table>
   <tr>
     <th>Application</th><th>Applicant</th><th>Position</th><th>Employer</th>
@@ -36,7 +42,7 @@
   </tr>
   {% for h in hirings %}
   <tr>
-    <td><a href="{% url 'application_detail' h.application.pk %}">{{ h.application.application_number }}</a></td>
+    <td>{% if 'application_detail' in can_open %}<a href="{% url 'application_detail' h.application.pk %}">{{ h.application.application_number }}</a>{% else %}{{ h.application.application_number }}{% endif %}</td>
     <td>{{ h.application.applicant.first_name }} {{ h.application.applicant.last_name }}</td>
     <td>{{ h.position }}</td>
     <td>{{ h.application.job_post.employer.company_name }}</td>

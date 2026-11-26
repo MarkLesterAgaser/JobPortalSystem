@@ -28,6 +28,25 @@
   {% for label, count in status_summary %}{{ label }} {{ count }}{% if not forloop.last %}, {% endif %}{% endfor %}
 </p>
 
+<h3>Applications per job</h3>
+<p>Most applied job {% if most_applied %}{{ most_applied.0.job.title }} with {{ most_applied.0.applications }} applications{% else %}None yet{% endif %}.</p>
+<table>
+  <tr><th>Job</th><th>Employer</th><th>Applications</th><th>Shortlisted</th><th>Hired</th></tr>
+  {% for r in job_summary %}
+  <tr>
+    <td><a href="{% url 'jobpost_detail' r.job.pk %}">{{ r.job.title }}</a></td>
+    <td>{{ r.job.employer.company_name }}</td>
+    <td>{{ r.applications }}</td>
+    <td>{{ r.shortlisted }}</td>
+    <td>{{ r.hired }}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="5">No applications to summarize.</td></tr>
+  {% endfor %}
+</table>
+<p>Applications per employer. {% for name, count in employer_summary %}{{ name }} {{ count }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+<h3>All applications</h3>
+
 <table>
   <tr>
     <th>Number</th><th>Applicant</th><th>Job</th><th>Employer</th>
@@ -35,7 +54,7 @@
   </tr>
   {% for a in applications %}
   <tr>
-    <td><a href="{% url 'application_detail' a.pk %}">{{ a.application_number }}</a></td>
+    <td>{% if 'application_detail' in can_open %}<a href="{% url 'application_detail' a.pk %}">{{ a.application_number }}</a>{% else %}{{ a.application_number }}{% endif %}</td>
     <td>{{ a.applicant.first_name }} {{ a.applicant.last_name }}</td>
     <td>{{ a.job_post.title }}</td>
     <td>{{ a.job_post.employer.company_name }}</td>

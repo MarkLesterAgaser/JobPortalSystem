@@ -64,10 +64,10 @@
   <tr><th>Screening status</th><td>{{ screening.get_status_display }}</td></tr>
   <tr><th>Remarks</th><td>{{ screening.remarks|default:"None yet"|linebreaksbr }}</td></tr>
   <tr><th>Education score</th><td>{{ screening.education_score }} of 20</td></tr>
-  <tr><th>Experience score</th><td>{{ screening.experience_score }} of 25</td></tr>
+  <tr><th>Experience score</th><td>{{ screening.experience_score }} of 30</td></tr>
   <tr><th>Skills score</th><td>{{ screening.skills_score }} of 30</td></tr>
   <tr><th>Certifications score</th><td>{{ screening.certifications_score }} of 10</td></tr>
-  <tr><th>Resume score</th><td>{{ screening.resume_score }} of 15</td></tr>
+  <tr><th>Resume and profile score</th><td>{{ screening.resume_score }} of 10</td></tr>
   <tr><th>Total score</th><td>{{ screening.total_score }} of 100</td></tr>
 </table>
 {% else %}

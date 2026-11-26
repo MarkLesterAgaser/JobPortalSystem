@@ -1,10 +1,12 @@
 import os
 from datetime import date
 from django import forms
+from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
 from django.db.models import Q
 from .models import (
     Applicant, ApplicantProfile, Application, Employer, JobCategory, JobPost,
-    JobRequirement, Screening, Interview, Evaluation, Hiring,
+    JobRequirement, Screening, Interview, Evaluation, Hiring, Role,
 )
 
 
@@ -63,6 +65,7 @@ class JobPostForm(forms.ModelForm):
         ]
         labels = {
             'category': 'Job category',
+            'description': 'Description and responsibilities',
             'required_experience': 'Required experience',
             'education_requirement': 'Education requirement',
             'application_deadline': 'Application deadline',
@@ -126,6 +129,7 @@ class JobRequirementForm(forms.ModelForm):
             'education_qualification', 'skills', 'work_experience',
             'certifications', 'other_qualifications',
         ]
+        labels = {'skills': 'Skills and technical skills'}
         widgets = {
             'skills': forms.Textarea(attrs={'rows': 3}),
             'other_qualifications': forms.Textarea(attrs={'rows': 3}),
@@ -319,6 +323,8 @@ class ApplicationForm(forms.ModelForm):
                 profile = ApplicantProfile.objects.filter(applicant=applicant).first()
                 if not profile or not profile.resume:
                     self.add_error('applicant', 'Upload a resume on the applicant profile first.')
+                elif not profile.education.strip() or not profile.skills.strip():
+                    self.add_error('applicant', 'Complete the education and skills on the applicant profile first.')
         return cleaned
 
 
@@ -337,10 +343,10 @@ class ScreeningRemarksForm(forms.ModelForm):
 
 SCORE_LIMITS = {
     'education_score': 20,
-    'experience_score': 25,
+    'experience_score': 30,
     'skills_score': 30,
     'certifications_score': 10,
-    'resume_score': 15,
+    'resume_score': 10,
 }
 
 
@@ -353,7 +359,7 @@ class ScreeningScoreForm(forms.ModelForm):
             'experience_score': 'Experience score',
             'skills_score': 'Skills score',
             'certifications_score': 'Certifications score',
-            'resume_score': 'Resume score',
+            'resume_score': 'Resume and profile score',
         }
 
     def __init__(self, *args, **kwargs):
@@ -494,3 +500,44 @@ class HiringForm(forms.ModelForm):
         if 'start_date' in self.changed_data and start < date.today():
             raise forms.ValidationError('The start date cannot be in the past.')
         return start
+
+
+class UserCreateForm(forms.Form):
+    username = forms.CharField(max_length=150)
+    email = forms.EmailField(
+        required=False,
+        help_text='Required for applicant logins. It must match the email of a registered applicant.',
+    )
+    role = forms.ModelChoiceField(
+        queryset=Role.objects.order_by('name'), empty_label='Select a role'
+    )
+    password1 = forms.CharField(label='Password', widget=forms.PasswordInput)
+    password2 = forms.CharField(label='Confirm password', widget=forms.PasswordInput)
+
+    def clean_username(self):
+        username = self.cleaned_data['username'].strip()
+        if User.objects.filter(username__iexact=username).exists():
+            raise forms.ValidationError('This username is already taken.')
+        return username
+
+    def clean(self):
+        cleaned = super().clean()
+        password1 = cleaned.get('password1')
+        password2 = cleaned.get('password2')
+        if password1 and password2 and password1 != password2:
+            self.add_error('password2', 'The passwords do not match.')
+        elif password1:
+            try:
+                validate_password(password1)
+            except forms.ValidationError as error:
+                self.add_error('password1', error)
+        role = cleaned.get('role')
+        email = (cleaned.get('email') or '').strip()
+        if role and role.name.strip().lower() == 'applicant':
+            if not email:
+                self.add_error('email', 'Enter the email of the applicant this login belongs to.')
+            elif not Applicant.objects.filter(email__iexact=email).exists():
+                self.add_error('email', 'No registered applicant has this email. Register the applicant first.')
+            elif User.objects.filter(email__iexact=email).exists():
+                self.add_error('email', 'Another login already uses this email.')
+        return cleaned

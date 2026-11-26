@@ -1,0 +1,44 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Employer report{% endblock %}
+{% block content %}
+<h2>Employer report</h2>
+
+<form method="get" class="bar">
+  <select name="status">
+    <option value="">All statuses</option>
+    <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+    <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+  </select>
+  <label>Registered from <input type="date" name="date_from" value="{{ date_from }}"></label>
+  <label>To <input type="date" name="date_to" value="{{ date_to }}"></label>
+  <button class="btn" type="submit">Run report</button>
+  <a class="btn gray" href="{% url 'report_employers' %}">Reset</a>
+  <a class="btn" href="?{{ request.GET.urlencode }}&export=csv" style="margin-left:auto;">Export CSV</a>
+</form>
+
+<p>
+  Employers {{ employers|length }}. Active employers {{ active_total }}.
+  Job posts {{ totals.jobs }}. Applications received {{ totals.applications }}.
+  Successful hires {{ totals.hires }}.
+</p>
+
+<table>
+  <tr>
+    <th>Company</th><th>Contact person</th><th>Status</th><th>Job posts</th>
+    <th>Open jobs</th><th>Applications received</th><th>Hires</th>
+  </tr>
+  {% for e in employers %}
+  <tr>
+    <td>{% if 'employer_profile' in can_open %}<a href="{% url 'employer_profile' e.pk %}">{{ e.company_name }}</a>{% else %}{{ e.company_name }}{% endif %}</td>
+    <td>{{ e.contact_person }}</td>
+    <td>{{ e.get_status_display }}</td>
+    <td>{{ e.job_total }}</td>
+    <td>{{ e.open_job_total }}</td>
+    <td>{{ e.application_total }}</td>
+    <td>{{ e.hire_total }}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="7">No employers match these filters.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

@@ -11,6 +11,12 @@
     <option value="{{ c.pk }}" {% if category == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
     {% endfor %}
   </select>
+  <select name="employer">
+    <option value="">All employers</option>
+    {% for e in employers %}
+    <option value="{{ e.pk }}" {% if employer == e.pk|stringformat:"s" %}selected{% endif %}>{{ e.company_name }}</option>
+    {% endfor %}
+  </select>
   <select name="employment_type">
     <option value="">All types</option>
     {% for value, label in type_choices %}
@@ -18,7 +24,11 @@
     {% endfor %}
   </select>
   <input type="text" name="location" value="{{ location }}" placeholder="Location">
+  <input type="text" name="skill" value="{{ skill }}" placeholder="Skill">
   <input type="number" name="min_salary" value="{{ min_salary }}" min="0" placeholder="Minimum salary">
+  <input type="number" name="max_salary" value="{{ max_salary }}" min="0" placeholder="Maximum salary">
+  <label>Posted from <input type="date" name="date_from" value="{{ date_from }}"></label>
+  <label>To <input type="date" name="date_to" value="{{ date_to }}"></label>
   <button class="btn" type="submit">Search</button>
   <a class="btn gray" href="{% url 'job_search' %}">Reset</a>
 </form>

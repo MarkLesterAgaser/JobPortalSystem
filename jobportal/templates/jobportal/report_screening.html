@@ -1,0 +1,72 @@
+{% extends 'jobportal/base.html' %}
+{% block title %}Screening report{% endblock %}
+{% block content %}
+<h2>Screening report</h2>
+
+<form method="get" class="bar">
+  <select name="job">
+    <option value="">All jobs</option>
+    {% for j in jobs %}
+    <option value="{{ j.pk }}" {% if job == j.pk|stringformat:"s" %}selected{% endif %}>{{ j.title }}</option>
+    {% endfor %}
+  </select>
+  <select name="status">
+    <option value="">All screening statuses</option>
+    {% for value, label in status_choices %}
+    <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <label>From <input type="date" name="date_from" value="{{ date_from }}"></label>
+  <label>To <input type="date" name="date_to" value="{{ date_to }}"></label>
+  <button class="btn" type="submit">Run report</button>
+  <a class="btn gray" href="{% url 'report_screening' %}">Reset</a>
+  <a class="btn" href="?{{ request.GET.urlencode }}&export=csv" style="margin-left:auto;">Export CSV</a>
+</form>
+
+<p>Applicants screened {{ totals.screened }}. Shortlisted {{ totals.shortlisted }}. Rejected {{ totals.rejected }}.</p>
+
+<h3>Applicants per job</h3>
+<table>
+  <tr>
+    <th>Job</th><th>Employer</th><th>Applicants</th><th>Screened</th>
+    <th>Shortlisted</th><th>Rejected</th><th>Average score</th>
+  </tr>
+  {% for r in job_summary %}
+  <tr>
+    <td>{{ r.job.title }}</td>
+    <td>{{ r.job.employer.company_name }}</td>
+    <td>{{ r.applicants }}</td>
+    <td>{{ r.screened }}</td>
+    <td>{{ r.shortlisted }}</td>
+    <td>{{ r.rejected }}</td>
+    <td>{% if r.average is not None %}{{ r.average }}{% else %}None{% endif %}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="7">No applications match these filters.</td></tr>
+  {% endfor %}
+</table>
+
+<h3>Screening scores</h3>
+<table>
+  <tr>
+    <th>Application</th><th>Applicant</th><th>Job</th><th>Education</th><th>Experience</th>
+    <th>Skills</th><th>Certifications</th><th>Resume</th><th>Total</th><th>Status</th>
+  </tr>
+  {% for a in screened %}
+  <tr>
+    <td>{% if 'application_detail' in can_open %}<a href="{% url 'application_detail' a.pk %}">{{ a.application_number }}</a>{% else %}{{ a.application_number }}{% endif %}</td>
+    <td>{{ a.applicant.first_name }} {{ a.applicant.last_name }}</td>
+    <td>{{ a.job_post.title }}</td>
+    <td>{{ a.screening.education_score }}</td>
+    <td>{{ a.screening.experience_score }}</td>
+    <td>{{ a.screening.skills_score }}</td>
+    <td>{{ a.screening.certifications_score }}</td>
+    <td>{{ a.screening.resume_score }}</td>
+    <td>{{ a.screening.total_score }}</td>
+    <td>{{ a.screening.get_status_display }}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="10">No screened applicants match these filters.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

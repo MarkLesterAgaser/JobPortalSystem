@@ -34,7 +34,7 @@
   </tr>
   {% for i in interviews %}
   <tr>
-    <td><a href="{% url 'application_detail' i.application.pk %}">{{ i.application.application_number }}</a></td>
+    <td>{% if 'application_detail' in can_open %}<a href="{% url 'application_detail' i.application.pk %}">{{ i.application.application_number }}</a>{% else %}{{ i.application.application_number }}{% endif %}</td>
     <td>{{ i.application.applicant.first_name }} {{ i.application.applicant.last_name }}</td>
     <td>{{ i.application.job_post.title }}</td>
     <td>{{ i.interviewer }}</td>

@@ -9,20 +9,16 @@
 </p>
 
 <p>
-  {% if user_role != 'applicant' %}
-  <a class="btn gray" href="{% url 'jobpost_list' %}">Back to job posts</a>
-  <a class="btn" href="{% url 'jobpost_edit' job.pk %}">Edit</a>
-  <a class="btn" href="{% url 'jobpost_requirements' job.pk %}">Requirements</a>
-  {% endif %}
-  {% if job.status == 'published' and user_role != 'employer' %}<a class="btn" href="{% url 'job_apply' job.pk %}">Apply</a>{% endif %}
-  {% if user_role != 'applicant' %}
-  <a class="btn" href="{% url 'candidate_selection' job.pk %}">Candidates</a>
-  {% include 'jobportal/jobpost_status_buttons.html' with j=job %}
-  {% endif %}
+  {% if 'jobpost_list' in can_open %}<a class="btn gray" href="{% url 'jobpost_list' %}">Back to job posts</a>{% endif %}
+  {% if 'jobpost_edit' in can_open %}<a class="btn" href="{% url 'jobpost_edit' job.pk %}">Edit</a>{% endif %}
+  {% if 'jobpost_requirements' in can_open %}<a class="btn" href="{% url 'jobpost_requirements' job.pk %}">Requirements</a>{% endif %}
+  {% if job.status == 'published' and 'job_apply' in can_open %}<a class="btn" href="{% url 'job_apply' job.pk %}">Apply</a>{% endif %}
+  {% if 'candidate_selection' in can_open %}<a class="btn" href="{% url 'candidate_selection' job.pk %}">Candidates</a>{% endif %}
+  {% if 'jobpost_publish' in can_open %}{% include 'jobportal/jobpost_status_buttons.html' with j=job %}{% endif %}
 </p>
 
 <table>
-  <tr><th>Employer</th><td>{% if user_role == 'applicant' %}{{ job.employer.company_name }}{% else %}<a href="{% url 'employer_detail' job.employer.pk %}">{{ job.employer.company_name }}</a>{% endif %}</td></tr>
+  <tr><th>Employer</th><td>{% if 'employer_detail' not in can_open %}{{ job.employer.company_name }}{% else %}<a href="{% url 'employer_detail' job.employer.pk %}">{{ job.employer.company_name }}</a>{% endif %}</td></tr>
   <tr><th>Category</th><td>{{ job.category.name|default:"None" }}</td></tr>
   <tr><th>Employment type</th><td>{{ job.get_employment_type_display }}</td></tr>
   <tr><th>Location</th><td>{{ job.location }}</td></tr>
@@ -39,12 +35,12 @@
   <tr><th>Education</th><td>{{ job.education_requirement|default:"Not stated" }}</td></tr>
   <tr><th>Application deadline</th><td>{{ job.application_deadline }}</td></tr>
   <tr><th>Posted</th><td>{{ job.created_at|date:"F j, Y" }}</td></tr>
-  {% if user_role != 'applicant' %}
+  {% if 'application_list' in can_open %}
   <tr><th>Applicants</th><td><a href="{% url 'application_list' %}?job={{ job.pk }}">{{ applicant_total }}</a></td></tr>
   {% endif %}
 </table>
 
-<h3>Description</h3>
+<h3>Description and responsibilities</h3>
 <p>{{ job.description|linebreaksbr }}</p>
 
 <h3>Requirements</h3>

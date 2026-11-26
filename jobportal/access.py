@@ -3,14 +3,15 @@ from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import redirect
 
-OPEN_NAMES = {'login', 'logout', 'landing', 'home'}
+OPEN_NAMES = {'login', 'logout', 'landing', 'home', 'password_change'}
 
 ADMIN_ONLY = {
     'employer_list', 'employer_add', 'employer_toggle',
     'employer_edit',
     'category_add', 'category_edit', 'category_toggle',
     'applicant_list', 'applicant_add', 'applicant_toggle',
-    'report_applicants',
+    'report_applicants', 'user_list', 'user_add', 'user_toggle',
+    'report_employers',
 }
 
 EMPLOYER_BLOCKED = ADMIN_ONLY | {
@@ -28,6 +29,24 @@ APPLICANT_ALLOWED = {
     'notification_mark_read', 'notification_mark_all_read',
 }
 
+RECRUITER_ALLOWED = {
+    'dashboard', 'job_search', 'jobpost_detail', 'applicant_profile',
+    'application_list', 'application_detail', 'application_review_start',
+    'application_confirmation', 'screening_review', 'screening_score',
+    'application_shortlist', 'application_reject', 'shortlist_list',
+    'interview_schedule', 'interview_list', 'interview_reschedule',
+    'interview_confirm', 'interview_complete', 'interview_no_show',
+    'interview_cancel', 'interview_evaluate', 'candidate_selection',
+    'hiring_add', 'hiring_list', 'hiring_edit', 'report_screening',
+}
+
+MANAGER_ALLOWED = {
+    'dashboard', 'job_search', 'jobpost_detail', 'report_index',
+    'report_jobs', 'report_applications', 'report_screening',
+    'report_interviews', 'report_hiring', 'report_employers',
+    'report_applicants',
+}
+
 
 def get_role(user):
     if not user.is_authenticated:
@@ -40,19 +59,6 @@ def get_role(user):
         return ''
 
 
-def role_context(request):
-    user = getattr(request, 'user', None)
-    role = get_role(user) if user is not None else ''
-    context = {'user_role': role, 'my_applicant_id': None}
-    if role == 'applicant' and user.email:
-        from .models import Applicant
-        context['my_applicant_id'] = (
-            Applicant.objects.filter(email__iexact=user.email)
-            .values_list('pk', flat=True).first()
-        )
-    return context
-
-
 def can_access(role, name):
     if role == 'admin':
         return True
@@ -60,7 +66,32 @@ def can_access(role, name):
         return name not in EMPLOYER_BLOCKED
     if role == 'applicant':
         return name in APPLICANT_ALLOWED
+    if role == 'recruiter':
+        return name in RECRUITER_ALLOWED
+    if role == 'manager':
+        return name in MANAGER_ALLOWED
     return False
+
+
+class Allowed:
+    def __init__(self, role):
+        self.role = role
+
+    def __contains__(self, name):
+        return can_access(self.role, name)
+
+
+def role_context(request):
+    user = getattr(request, 'user', None)
+    role = get_role(user) if user is not None else ''
+    context = {'user_role': role, 'my_applicant_id': None, 'can_open': Allowed(role)}
+    if role == 'applicant' and user.email:
+        from .models import Applicant
+        context['my_applicant_id'] = (
+            Applicant.objects.filter(email__iexact=user.email)
+            .values_list('pk', flat=True).first()
+        )
+    return context
 
 
 APPLICANT_PK_NAMES = {

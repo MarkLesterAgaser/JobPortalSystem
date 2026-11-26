@@ -22,6 +22,7 @@
     <option value="{{ c.pk }}" {% if category == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
     {% endfor %}
   </select>
+  <input type="text" name="location" value="{{ location }}" placeholder="Location">
   <label>From <input type="date" name="date_from" value="{{ date_from }}"></label>
   <label>To <input type="date" name="date_to" value="{{ date_to }}"></label>
   <button class="btn" type="submit">Run report</button>
@@ -33,6 +34,10 @@
   Total {{ jobs|length }}.
   {% for label, count in status_summary %}{{ label }} {{ count }}{% if not forloop.last %}, {% endif %}{% endfor %}
 </p>
+
+<p>Jobs by category. {% for name, count in category_summary %}{{ name }} {{ count }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+<p>Jobs by employer. {% for name, count in employer_summary %}{{ name }} {{ count }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+<p>Jobs by location. {% for name, count in location_summary %}{{ name }} {{ count }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
 
 <table>
   <tr>

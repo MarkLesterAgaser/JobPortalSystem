@@ -136,8 +136,8 @@ class ApplicationWorkflowTests(TestCase):
             'education_score': '18',
             'experience_score': '20',
             'skills_score': '25',
-            'certifications_score': '8',
-            'resume_score': '12',
+            'certifications_score': '10',
+            'resume_score': '10',
         }
         self.client.post(score_url, passing_scores)
         screening.refresh_from_db()
@@ -178,6 +178,71 @@ class ApplicationWorkflowTests(TestCase):
         )
         screening.refresh_from_db()
         self.assertEqual(screening.total_score, 59)
+
+
+class UserManagementTests(TestCase):
+    def setUp(self):
+        admin_role = Role.objects.create(name='Admin')
+        self.admin = User.objects.create_superuser(
+            username='useradmin',
+            email='useradmin@example.com',
+            password='test-password',
+        )
+        UserProfile.objects.create(user=self.admin, role=admin_role)
+        self.client.force_login(self.admin)
+        self.applicant_role = Role.objects.create(name='Applicant')
+        self.applicant = Applicant.objects.create(
+            applicant_number='APP-1000',
+            first_name='Grace',
+            last_name='Hopper',
+            contact_number='1234567890',
+            email='grace@example.com',
+        )
+
+    def test_user_creation_and_account_toggle(self):
+        response = self.client.post(reverse('user_add'), {
+            'username': 'grace.hopper',
+            'email': self.applicant.email,
+            'role': self.applicant_role.pk,
+            'password1': 'Strong-P@ssw0rd-9',
+            'password2': 'Strong-P@ssw0rd-9',
+        })
+        self.assertRedirects(response, reverse('user_list'))
+        user = User.objects.get(username='grace.hopper')
+        self.assertEqual(user.email, self.applicant.email)
+        self.assertEqual(user.profile.role, self.applicant_role)
+
+        response = self.client.get(reverse('user_list'))
+        self.assertContains(response, 'grace.hopper')
+        self.client.post(reverse('user_toggle', args=[user.pk]))
+        user.refresh_from_db()
+        self.assertFalse(user.is_active)
+
+    def test_dashboard_and_report_pages_render(self):
+        for name in (
+            'dashboard', 'report_index', 'report_jobs', 'report_applicants',
+            'report_applications', 'report_interviews', 'report_hiring',
+            'report_screening', 'report_employers',
+        ):
+            with self.subTest(page=name):
+                response = self.client.get(reverse(name))
+                self.assertEqual(response.status_code, 200)
+
+    def test_recruiter_and_manager_landing_pages_are_allowed(self):
+        for role_name, destination in (
+            ('Recruiter', 'application_list'),
+            ('Manager', 'report_index'),
+        ):
+            with self.subTest(role=role_name):
+                role = Role.objects.create(name=role_name)
+                user = User.objects.create_user(
+                    username=role_name.lower(),
+                    password='test-password',
+                )
+                UserProfile.objects.create(user=user, role=role)
+                self.client.force_login(user)
+                response = self.client.get(reverse('landing'))
+                self.assertRedirects(response, reverse(destination))
 
 
 class ApplicantOwnershipTests(TestCase):

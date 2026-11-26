@@ -6,10 +6,26 @@
 
 <table>
   <tr><th>Report</th><th>What it shows</th></tr>
+  {% if 'report_jobs' in can_open %}
   <tr><td><a href="{% url 'report_jobs' %}">Job post report</a></td><td>Job posts by status, employer, category, and date, with applicant and hire counts.</td></tr>
+  {% endif %}
+  {% if 'report_applicants' in can_open %}
   <tr><td><a href="{% url 'report_applicants' %}">Applicant report</a></td><td>Applicants by status and registration date, with application and hire counts.</td></tr>
+  {% endif %}
+  {% if 'report_applications' in can_open %}
   <tr><td><a href="{% url 'report_applications' %}">Application report</a></td><td>Applications by status, job, and date, with screening scores.</td></tr>
+  {% endif %}
+  {% if 'report_screening' in can_open %}
+  <tr><td><a href="{% url 'report_screening' %}">Screening report</a></td><td>Applicants screened, shortlisted, rejected, scores, and applicants per job.</td></tr>
+  {% endif %}
+  {% if 'report_employers' in can_open %}
+  <tr><td><a href="{% url 'report_employers' %}">Employer report</a></td><td>Employers with job posts, applications received, and hires.</td></tr>
+  {% endif %}
+  {% if 'report_interviews' in can_open %}
   <tr><td><a href="{% url 'report_interviews' %}">Interview report</a></td><td>Interviews by status, interviewer, and date, with evaluation totals.</td></tr>
+  {% endif %}
+  {% if 'report_hiring' in can_open %}
   <tr><td><a href="{% url 'report_hiring' %}">Hiring report</a></td><td>Hires by employer, status, and date, with salary totals.</td></tr>
+  {% endif %}
 </table>
 {% endblock %}

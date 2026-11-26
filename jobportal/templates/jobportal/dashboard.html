@@ -11,15 +11,59 @@
 <h2>Dashboard</h2>
 
 <div class="stat-grid">
-  <a class="stat-box" href="{% url 'employer_list' %}"><strong>{{ employer_total }}</strong><span>Active employers</span></a>
-  <a class="stat-box" href="{% url 'job_search' %}"><strong>{{ open_job_total }}</strong><span>Open jobs</span></a>
-  <a class="stat-box" href="{% url 'applicant_list' %}"><strong>{{ applicant_total }}</strong><span>Active applicants</span></a>
-  <a class="stat-box" href="{% url 'application_list' %}"><strong>{{ application_total }}</strong><span>Applications</span></a>
-  <a class="stat-box" href="{% url 'application_list' %}?status=submitted"><strong>{{ awaiting_review }}</strong><span>Awaiting review</span></a>
-  <a class="stat-box" href="{% url 'interview_list' %}"><strong>{{ upcoming_total }}</strong><span>Upcoming interviews</span></a>
-  <a class="stat-box" href="{% url 'hiring_list' %}"><strong>{{ hire_total }}</strong><span>Hires</span></a>
-  <a class="stat-box" href="{% url 'notification_list' %}?status=unread"><strong>{{ unread_total }}</strong><span>Unread notifications</span></a>
+  <a class="stat-box" {% if 'employer_list' in can_open %}href="{% url 'employer_list' %}"{% endif %}><strong>{{ employer_total }}</strong><span>Active employers</span></a>
+  <a class="stat-box" {% if 'job_search' in can_open %}href="{% url 'job_search' %}"{% endif %}><strong>{{ open_job_total }}</strong><span>Open jobs</span></a>
+  <a class="stat-box" {% if 'applicant_list' in can_open %}href="{% url 'applicant_list' %}"{% endif %}><strong>{{ applicant_total }}</strong><span>Active applicants</span></a>
+  <a class="stat-box" {% if 'application_list' in can_open %}href="{% url 'application_list' %}"{% endif %}><strong>{{ application_total }}</strong><span>Applications</span></a>
+  <a class="stat-box" {% if 'application_list' in can_open %}href="{% url 'application_list' %}?status=submitted"{% endif %}><strong>{{ awaiting_review }}</strong><span>Awaiting review</span></a>
+  <a class="stat-box" {% if 'interview_list' in can_open %}href="{% url 'interview_list' %}"{% endif %}><strong>{{ interview_total }}</strong><span>Interviews</span></a>
+  <a class="stat-box" {% if 'hiring_list' in can_open %}href="{% url 'hiring_list' %}"{% endif %}><strong>{{ hire_total }}</strong><span>Hires</span></a>
+  <a class="stat-box" {% if 'notification_list' in can_open %}href="{% url 'notification_list' %}?status=unread"{% endif %}><strong>{{ unread_total }}</strong><span>Unread notifications</span></a>
 </div>
+
+<h3>Recent job posts</h3>
+<table>
+  <tr><th>Job</th><th>Employer</th><th>Status</th><th>Deadline</th><th>Applicants</th></tr>
+  {% for j in recent_jobs %}
+  <tr>
+    <td><a href="{% url 'jobpost_detail' j.pk %}">{{ j.title }}</a></td>
+    <td>{{ j.employer.company_name }}</td>
+    <td>{{ j.get_status_display }}</td>
+    <td>{{ j.application_deadline|date:"M j, Y" }}</td>
+    <td>{{ j.job_applicants }}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="5">No job posts yet.</td></tr>
+  {% endfor %}
+</table>
+
+<h3>Applications by job category</h3>
+<table>
+  <tr><th>Category</th><th>Applications</th><th>Share</th></tr>
+  {% for label, count, pct in category_bars %}
+  <tr>
+    <td>{{ label }}</td>
+    <td>{{ count }}</td>
+    <td style="width:50%"><div style="background:#c2185b;height:12px;border-radius:3px;width:{{ pct }}%"></div></td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="3">No applications yet.</td></tr>
+  {% endfor %}
+</table>
+
+<h3>Hiring trends</h3>
+<table>
+  <tr><th>Month</th><th>Hires</th><th>Trend</th></tr>
+  {% for label, count, pct in hiring_bars %}
+  <tr>
+    <td>{{ label }}</td>
+    <td>{{ count }}</td>
+    <td style="width:50%"><div style="background:#c2185b;height:12px;border-radius:3px;width:{{ pct }}%"></div></td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="3">No hires yet.</td></tr>
+  {% endfor %}
+</table>
 
 <h3>Applications by status</h3>
 <table>
