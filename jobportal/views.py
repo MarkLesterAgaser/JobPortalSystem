@@ -9,7 +9,7 @@ from django.http import Http404, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
 
-from .access import get_role
+from .access import applicant_id_for, get_role
 from .forms import (
     ApplicantEducationForm, ApplicantForm, ApplicantProfileInfoForm,
     ApplicantSkillsExperienceForm, ApplicationForm, EmployerForm,
@@ -551,7 +551,8 @@ def next_application_number():
 def job_apply(request, pk):
     job = get_object_or_404(JobPost.objects.select_related('employer'), pk=pk)
     if request.method == 'POST':
-        form = ApplicationForm(request.POST, request.FILES, job=job)
+        only = (applicant_id_for(request.user) or 0) if get_role(request.user) == 'applicant' else None
+        form = ApplicationForm(request.POST, request.FILES, job=job, only_applicant=only)
         if form.is_valid():
             application = form.save(commit=False)
             application.job_post = job
@@ -566,7 +567,8 @@ def job_apply(request, pk):
             )
             return redirect('application_confirmation', pk=application.pk)
     else:
-        form = ApplicationForm(job=job)
+        only = (applicant_id_for(request.user) or 0) if get_role(request.user) == 'applicant' else None
+        form = ApplicationForm(job=job, only_applicant=only)
     return render(request, 'jobportal/job_application.html', {
         'job': job,
         'form': form,
@@ -1151,6 +1153,8 @@ def redirect_back(request, default='notification_list'):
 def notification_list(request):
     notifications = Notification.objects.select_related('applicant').order_by('-created_at')
     applicant = request.GET.get('applicant', '')
+    if get_role(request.user) == 'applicant':
+        applicant = str(applicant_id_for(request.user) or 0)
     status = request.GET.get('status', '')
 
     if applicant.isdigit():
@@ -1185,6 +1189,8 @@ def notification_mark_read(request, pk):
 def notification_mark_all_read(request):
     unread = Notification.objects.filter(is_read=False)
     applicant = request.POST.get('applicant', '')
+    if get_role(request.user) == 'applicant':
+        applicant = str(applicant_id_for(request.user) or 0)
     if applicant.isdigit():
         unread = unread.filter(applicant_id=applicant)
     count = unread.update(is_read=True)

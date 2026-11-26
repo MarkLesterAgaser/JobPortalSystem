@@ -285,9 +285,13 @@ class ApplicationForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         self.job = kwargs.pop('job')
+        self.only_applicant = kwargs.pop('only_applicant', None)
         super().__init__(*args, **kwargs)
         self.fields['applicant'].queryset = Applicant.objects.order_by('last_name', 'first_name')
         self.fields['applicant'].empty_label = 'Select an applicant'
+        if self.only_applicant is not None:
+            self.fields['applicant'].queryset = Applicant.objects.filter(pk=self.only_applicant)
+            self.fields['applicant'].empty_label = None
         self.fields['applicant'].label_from_instance = (
             lambda a: f'{a.last_name}, {a.first_name} ({a.applicant_number})'
         )

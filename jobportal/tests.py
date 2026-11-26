@@ -5,7 +5,7 @@ from datetime import date
 
 from .models import (
     Applicant, ApplicantProfile, Application, Employer, JobCategory, JobPost,
-    Role, Screening, UserProfile,
+    Notification, Role, Screening, UserProfile,
 )
 from django.contrib.auth.models import User
 
@@ -178,3 +178,112 @@ class ApplicationWorkflowTests(TestCase):
         )
         screening.refresh_from_db()
         self.assertEqual(screening.total_score, 59)
+
+
+class ApplicantOwnershipTests(TestCase):
+    def setUp(self):
+        role = Role.objects.create(name='Applicant')
+        self.owner = Applicant.objects.create(
+            applicant_number='APP-0101',
+            first_name='Owner',
+            last_name='Applicant',
+            contact_number='1234567890',
+            email='owner@example.com',
+        )
+        self.other = Applicant.objects.create(
+            applicant_number='APP-0102',
+            first_name='Other',
+            last_name='Applicant',
+            contact_number='1234567891',
+            email='other@example.com',
+        )
+        ApplicantProfile.objects.create(applicant=self.owner)
+        ApplicantProfile.objects.create(applicant=self.other)
+        user = User.objects.create_user(
+            username='applicant-owner',
+            email=self.owner.email,
+            password='test-password',
+        )
+        UserProfile.objects.create(user=user, role=role)
+        self.client.force_login(user)
+
+        employer = Employer.objects.create(
+            company_name='Ownership Ltd',
+            company_type='Private',
+            contact_person='Contact',
+            contact_number='1234567890',
+            email='contact@example.com',
+            address='Example address',
+        )
+        category = JobCategory.objects.create(name='Ownership')
+        self.job = JobPost.objects.create(
+            employer=employer,
+            category=category,
+            title='Ownership role',
+            description='A test position.',
+            employment_type='full_time',
+            location='Remote',
+            application_deadline=date(2099, 12, 31),
+            status='published',
+        )
+        self.owner_application = Application.objects.create(
+            application_number='APL-0101',
+            applicant=self.owner,
+            job_post=self.job,
+        )
+        self.other_application = Application.objects.create(
+            application_number='APL-0102',
+            applicant=self.other,
+            job_post=self.job,
+        )
+        self.owner_notification = Notification.objects.create(
+            applicant=self.owner,
+            message='Owner notification',
+        )
+        self.other_notification = Notification.objects.create(
+            applicant=self.other,
+            message='Other notification',
+        )
+
+    def test_applicant_cannot_open_another_applicants_records(self):
+        response = self.client.get(
+            reverse('applicant_profile', args=[self.other.pk])
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], reverse('landing'))
+
+        response = self.client.get(
+            reverse('application_confirmation', args=[self.other_application.pk])
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], reverse('landing'))
+
+        response = self.client.get(
+            reverse('application_confirmation', args=[self.owner_application.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_applicant_notifications_are_limited_to_their_records(self):
+        response = self.client.get(
+            reverse('notification_list'), {'applicant': self.other.pk}
+        )
+        self.assertContains(response, 'Owner notification')
+        self.assertNotContains(response, 'Other notification')
+        self.assertNotContains(response, 'All applicants')
+
+        self.client.post(
+            reverse('notification_mark_all_read'),
+            {'applicant': self.other.pk},
+        )
+        self.owner_notification.refresh_from_db()
+        self.other_notification.refresh_from_db()
+        self.assertTrue(self.owner_notification.is_read)
+        self.assertFalse(self.other_notification.is_read)
+
+    def test_applicant_application_form_only_offers_their_record(self):
+        response = self.client.get(reverse('job_apply', args=[self.job.pk]))
+        form = response.context['form']
+        self.assertEqual(
+            list(form.fields['applicant'].queryset),
+            [self.owner],
+        )

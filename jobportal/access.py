@@ -63,6 +63,40 @@ def can_access(role, name):
     return False
 
 
+APPLICANT_PK_NAMES = {
+    'applicant_profile', 'applicant_profile_edit', 'applicant_education',
+    'applicant_skills', 'applicant_resume', 'applicant_resume_delete',
+    'applicant_edit', 'applicant_applications',
+}
+
+
+def applicant_id_for(user):
+    if not user.is_authenticated or not user.email:
+        return None
+    from .models import Applicant
+    return (
+        Applicant.objects.filter(email__iexact=user.email)
+        .values_list('pk', flat=True).first()
+    )
+
+
+def owns_page(user, name, kwargs):
+    from .models import Application, Notification
+    mine = applicant_id_for(user)
+    if mine is None:
+        return name not in APPLICANT_PK_NAMES and name not in (
+            'application_confirmation', 'notification_mark_read'
+        )
+    pk = kwargs.get('pk')
+    if name in APPLICANT_PK_NAMES:
+        return pk == mine
+    if name == 'application_confirmation':
+        return Application.objects.filter(pk=pk, applicant_id=mine).exists()
+    if name == 'notification_mark_read':
+        return Notification.objects.filter(pk=pk, applicant_id=mine).exists()
+    return True
+
+
 class RoleAccessMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
@@ -81,7 +115,13 @@ class RoleAccessMiddleware:
             if name == 'login':
                 return None
             return redirect_to_login(request.get_full_path())
-        if name in OPEN_NAMES or can_access(get_role(request.user), name):
+        role = get_role(request.user)
+        if name in OPEN_NAMES:
             return None
-        messages.error(request, 'Your account cannot open that page.')
-        return redirect('landing')
+        if not can_access(role, name):
+            messages.error(request, 'Your account cannot open that page.')
+            return redirect('landing')
+        if role == 'applicant' and not owns_page(request.user, name, view_kwargs):
+            messages.error(request, 'You can only open your own records.')
+            return redirect('landing')
+        return None
