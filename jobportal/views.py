@@ -867,14 +867,8 @@ def landing(request):
     role = get_role(request.user)
     if role == 'applicant':
         return redirect('job_search')
-    if role == 'admin':
-        return redirect('employer_list')
-    if role == 'employer':
-        return redirect('jobpost_list')
-    if role == 'recruiter':
-        return redirect('application_list')
-    if role == 'manager':
-        return redirect('report_index')
+    if role in ('admin', 'employer', 'recruiter', 'manager'):
+        return redirect('dashboard')
     return render(request, 'jobportal/no_access.html')
 def notify_applicant(application, text):
     Notification.objects.create(applicant=application.applicant, message=text[:255])

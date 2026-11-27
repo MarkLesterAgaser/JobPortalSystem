@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+{% load static %}
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}Job Portal{% endblock %}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'jobportal/style.css' %}">
 <style>
   :root {
     --ink: #2a2127;
@@ -132,50 +134,23 @@
 <body>
 <div class="shell">
   <aside class="side">
-    <a class="brand" href="{% if user.is_authenticated %}{% url 'landing' %}{% else %}{% url 'employer_list' %}{% endif %}">Job Portal</a>
+    <a class="brand" href="{% url 'landing' %}">Job Portal</a>
     <nav>
-      {% if 'dashboard' in can_open %}
-      <a href="{% url 'dashboard' %}" {% if '/dashboard' in request.path %}class="current"{% endif %}>Dashboard</a>
-      {% endif %}
-      {% if 'employer_list' in can_open %}
-      <a href="{% url 'employer_list' %}" {% if request.path == '/' or '/employers' in request.path %}class="current"{% endif %}>Employers</a>
-      {% endif %}
-      {% if 'category_list' in can_open %}
-      <a href="{% url 'category_list' %}" {% if '/categories' in request.path %}class="current"{% endif %}>Job categories</a>
-      {% endif %}
-      {% if 'jobpost_list' in can_open %}
-      <a href="{% url 'jobpost_list' %}" {% if '/jobs' in request.path %}class="current"{% endif %}>Job posts</a>
-      {% endif %}
-      {% if 'job_search' in can_open %}
-      <a href="{% url 'job_search' %}" {% if '/browse' in request.path %}class="current"{% endif %}>Browse jobs</a>
-      {% endif %}
+      {% if 'dashboard' in can_open %}<a href="{% url 'dashboard' %}" {% if '/dashboard' in request.path %}class="current"{% endif %}>Dashboard</a>{% endif %}
+      {% if 'jobpost_list' in can_open %}<a href="{% url 'jobpost_list' %}" {% if '/jobs' in request.path %}class="current"{% endif %}>Job posts</a>{% endif %}
+      {% if 'application_list' in can_open %}<a href="{% url 'application_list' %}" {% if '/applications' in request.path %}class="current"{% endif %}>Applications</a>{% endif %}
+      {% if 'interview_list' in can_open %}<a href="{% url 'interview_list' %}" {% if '/interviews' in request.path %}class="current"{% endif %}>Interviews</a>{% endif %}
+      {% if 'hiring_list' in can_open %}<a href="{% url 'hiring_list' %}" {% if '/hiring' in request.path %}class="current"{% endif %}>Hiring</a>{% endif %}
+      {% if 'report_index' in can_open %}<a href="{% url 'report_index' %}" {% if '/reports' in request.path %}class="current"{% endif %}>Reports</a>{% endif %}
+      {% if 'employer_list' in can_open %}<a href="{% url 'employer_list' %}" {% if '/employers' in request.path %}class="current"{% endif %}>Employers</a>{% endif %}
+      {% if 'category_list' in can_open %}<a href="{% url 'category_list' %}" {% if '/categories' in request.path %}class="current"{% endif %}>Job categories</a>{% endif %}
+      {% if 'applicant_list' in can_open %}<a href="{% url 'applicant_list' %}" {% if '/applicants' in request.path %}class="current"{% endif %}>Applicants</a>{% endif %}
+      {% if user_role == 'admin' %}<a href="/admin/">Admin</a>{% endif %}
+      {% if 'notification_list' in can_open %}<a href="{% url 'notification_list' %}" {% if '/notifications' in request.path %}class="current"{% endif %}>Notifications</a>{% endif %}
+      {% if 'job_search' in can_open %}<a href="{% url 'job_search' %}" {% if '/browse' in request.path %}class="current"{% endif %}>Browse jobs</a>{% endif %}
       {% if my_applicant_id %}
       <a href="{% url 'applicant_profile' my_applicant_id %}">My profile</a>
       <a href="{% url 'applicant_applications' my_applicant_id %}">My applications</a>
-      {% endif %}
-      {% if 'applicant_list' in can_open %}
-      <a href="{% url 'applicant_list' %}" {% if '/applicants' in request.path %}class="current"{% endif %}>Applicants</a>
-      {% endif %}
-      {% if 'user_list' in can_open %}
-      <a href="{% url 'user_list' %}" {% if '/users' in request.path %}class="current"{% endif %}>Users</a>
-      {% endif %}
-      {% if 'application_list' in can_open %}
-      <a href="{% url 'application_list' %}" {% if '/applications' in request.path %}class="current"{% endif %}>Applications</a>
-      {% endif %}
-      {% if 'interview_list' in can_open %}
-      <a href="{% url 'interview_list' %}" {% if '/interviews' in request.path %}class="current"{% endif %}>Interviews</a>
-      {% endif %}
-      {% if 'hiring_list' in can_open %}
-      <a href="{% url 'hiring_list' %}" {% if '/hiring' in request.path %}class="current"{% endif %}>Hiring</a>
-      {% endif %}
-      {% if 'notification_list' in can_open %}
-      <a href="{% url 'notification_list' %}" {% if '/notifications' in request.path %}class="current"{% endif %}>Notifications</a>
-      {% endif %}
-      {% if 'report_index' in can_open %}
-      <a href="{% url 'report_index' %}" {% if '/reports' in request.path %}class="current"{% endif %}>Reports</a>
-      {% endif %}
-      {% if user.is_staff %}
-      <a href="/admin/">Admin</a>
       {% endif %}
     </nav>
     {% if user.is_authenticated %}

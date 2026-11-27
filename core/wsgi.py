@@ -9,6 +9,8 @@ https://docs.djangoproject.com/en/6.1/howto/deployment/wsgi/
 
 import os
 
+os.environ['JOBPORTAL_PRODUCTION'] = '1'
+
 from django.core.wsgi import get_wsgi_application
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')

@@ -229,10 +229,7 @@ class UserManagementTests(TestCase):
                 self.assertEqual(response.status_code, 200)
 
     def test_recruiter_and_manager_landing_pages_are_allowed(self):
-        for role_name, destination in (
-            ('Recruiter', 'application_list'),
-            ('Manager', 'report_index'),
-        ):
+        for role_name in ('Recruiter', 'Manager'):
             with self.subTest(role=role_name):
                 role = Role.objects.create(name=role_name)
                 user = User.objects.create_user(
@@ -242,7 +239,7 @@ class UserManagementTests(TestCase):
                 UserProfile.objects.create(user=user, role=role)
                 self.client.force_login(user)
                 response = self.client.get(reverse('landing'))
-                self.assertRedirects(response, reverse(destination))
+                self.assertRedirects(response, reverse('dashboard'))
 
 
 class ApplicantOwnershipTests(TestCase):
